@@ -5,7 +5,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../lib/AuthContext';
 import { supabase } from '../../lib/supabase';
-import { hasPermission } from '../../lib/roleUtils';
+import { hasPermission, UserRole } from '../../lib/roleUtils';
 import UserSearch from '../../components/UserSearch';
 import RoleManager from '../../components/RoleManager';
 import { useRouter } from 'next/navigation';
@@ -20,7 +20,7 @@ interface Shot {
   created_at: string;
   profiles: {
     username: string;
-  };
+  } | null;
 }
 
 export default function AdminPage() {
@@ -140,7 +140,7 @@ export default function AdminPage() {
     }
   };
 
-  const handlePromoteUser = async (userId: string, newRole: 'member' | 'admin') => {
+  const handlePromoteUser = async (userId: string, newRole: UserRole) => {
     if (!user) return;
 
     try {
@@ -330,7 +330,7 @@ export default function AdminPage() {
                       <h3 className="font-semibold text-lg mb-2">{shot.title}</h3>
                       <p className="text-gray-400 text-sm mb-3">{shot.description}</p>
                       <div className="text-xs text-gray-500 mb-4">
-                        Por: @{shot.profiles.username} • {formatDate(shot.created_at)}
+                        Por: @{shot.profiles?.username || 'Usuario desconocido'} • {formatDate(shot.created_at)}
                       </div>
                       <div className="flex space-x-2">
                         <button

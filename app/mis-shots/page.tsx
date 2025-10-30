@@ -46,7 +46,7 @@ export default function MisShotsPage() {
     try {
       const { data, error } = await supabase
         .from('shots')
-        .select('id, title, description, image_url, approved, created_at')
+        .select('id, title, description, image_url, is_approved, created_at')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
