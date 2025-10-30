@@ -2,11 +2,12 @@
 
 import { useState, useRef, useEffect } from "react"
 import type { User } from "@supabase/supabase-js"
+import type { UserWithRole } from "../lib/roleUtils"
 import { supabase } from "../lib/supabase"
 import Link from "next/link"
 import CreateShotModal from "./CreateShotModal"
 
-export default function UserMenuButton({ user }: { user: User }) {
+export default function UserMenuButton({ user }: { user: User | UserWithRole }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const [username, setUsername] = useState<string>("")

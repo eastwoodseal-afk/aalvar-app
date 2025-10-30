@@ -10,7 +10,6 @@ export interface UserWithRole {
   created_at: string;
   promoted_by?: string;
   promoted_at?: string;
-  is_admin?: boolean;
 }
 
 export interface RolePromotion {
@@ -109,7 +108,10 @@ export const getNextPromotableRole = (currentRole: UserRole): UserRole | null =>
 };
 
 export const hasPermission = (userRole: UserRole, permission: keyof typeof ROLE_PERMISSIONS.subscriber): boolean => {
-  return ROLE_PERMISSIONS[userRole]?.[permission] || false;
+  const val = (ROLE_PERMISSIONS as any)[userRole]?.[permission];
+  // If the permission value is an array (like 'sections') it's not a boolean permission
+  if (Array.isArray(val)) return false;
+  return !!val;
 };
 
 export const canAccessSection = (userRole: UserRole, section: string): boolean => {

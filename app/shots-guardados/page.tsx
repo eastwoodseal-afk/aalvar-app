@@ -18,10 +18,10 @@ interface SavedShot {
     description: string;
     image_url: string;
     created_at: string;
-    users: {
+    profiles: {
       email: string;
-    };
-  };
+    }[];
+  }[];
 }
 
 export default function ShotsGuardadosPage() {
@@ -62,7 +62,7 @@ export default function ShotsGuardadosPage() {
             description,
             image_url,
             created_at,
-            users (
+            profiles!shots_user_id_fkey (
               email
             )
           )
@@ -172,22 +172,22 @@ export default function ShotsGuardadosPage() {
             {savedShots.map((savedShot) => (
               <div key={savedShot.id} className="bg-gray-900 rounded-lg overflow-hidden">
                 <img
-                  src={savedShot.shots.image_url}
-                  alt={savedShot.shots.title}
+                  src={savedShot.shots[0].image_url}
+                  alt={savedShot.shots[0].title}
                   className="w-full h-48 object-cover"
                 />
                 <div className="p-4">
-                  <h3 className="font-semibold text-lg mb-2">{savedShot.shots.title}</h3>
-                  <p className="text-gray-400 text-sm mb-3">{savedShot.shots.description}</p>
+                  <h3 className="font-semibold text-lg mb-2">{savedShot.shots[0].title}</h3>
+                  <p className="text-gray-400 text-sm mb-3">{savedShot.shots[0].description}</p>
                   <div className="text-xs text-gray-500 mb-2">
-                    Por: {savedShot.shots.users.email}
+                    Por: {savedShot.shots[0].profiles[0]?.email}
                   </div>
                   <div className="text-xs text-gray-500 mb-4">
                     Guardado: {formatDate(savedShot.created_at)}
                   </div>
                   <div className="flex space-x-2">
                     <button
-                      onClick={() => window.open(savedShot.shots.image_url, '_blank')}
+                      onClick={() => window.open(savedShot.shots[0].image_url, '_blank')}
                       className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition-colors"
                     >
                       👁️ Ver

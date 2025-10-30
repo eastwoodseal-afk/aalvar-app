@@ -55,7 +55,8 @@ export default function MisShotsPage() {
         return;
       }
 
-      setShots(data || []);
+  // Normalize Supabase field `is_approved` to our local `approved` property
+  setShots((data || []).map((d: any) => ({ ...d, approved: d.is_approved })));
     } catch (error) {
       console.error('Error in fetchMyShots:', error);
     } finally {

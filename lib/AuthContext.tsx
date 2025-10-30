@@ -26,7 +26,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, username, role, created_at, promoted_by, promoted_at, is_admin')
+        .select('id, username, role, created_at, promoted_by, promoted_at')
         .eq('id', authUser.id)
         .single();
 
@@ -44,7 +44,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         created_at: data.created_at,
         promoted_by: data.promoted_by,
         promoted_at: data.promoted_at,
-        is_admin: data.is_admin
       };
 
       return userWithRole;
@@ -115,7 +114,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           .from('profiles')
           .update({ 
             role: 'superadmin',
-            is_admin: true,
             promoted_by: data.user!.id,
             promoted_at: new Date().toISOString()
           })

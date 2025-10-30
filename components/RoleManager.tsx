@@ -26,7 +26,7 @@ export default function RoleManager({ currentRole }: RoleManagerProps) {
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, username, role, created_at, promoted_by, promoted_at, is_admin')
+        .select('id, username, role, created_at, promoted_by, promoted_at')
         .eq('role', 'admin')
         .order('promoted_at', { ascending: false });
 
@@ -43,7 +43,6 @@ export default function RoleManager({ currentRole }: RoleManagerProps) {
         created_at: profile.created_at,
         promoted_by: profile.promoted_by,
         promoted_at: profile.promoted_at,
-        is_admin: profile.is_admin
       }));
 
       setAdmins(adminsWithRole);
@@ -113,7 +112,6 @@ export default function RoleManager({ currentRole }: RoleManagerProps) {
           .from('profiles')
           .update({ 
             role: 'member',
-            is_admin: false,
             promoted_by: currentUser.id,
             promoted_at: new Date().toISOString()
           })

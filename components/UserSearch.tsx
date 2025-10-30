@@ -40,7 +40,7 @@ export default function UserSearch({
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, username, role, created_at, promoted_by, promoted_at, is_admin')
+        .select('id, username, role, created_at, promoted_by, promoted_at')
         .eq('role', searchRole)
         .ilike('username', `%${searchTerm}%`)
         .limit(10);
@@ -59,10 +59,9 @@ export default function UserSearch({
         created_at: profile.created_at,
         promoted_by: profile.promoted_by,
         promoted_at: profile.promoted_at,
-        is_admin: profile.is_admin
-      }));
+  }));
 
-      setUsers(usersWithRole);
+  setUsers(usersWithRole);
     } catch (error) {
       console.error('Error in searchUsers:', error);
     } finally {

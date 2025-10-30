@@ -20,7 +20,7 @@ interface Shot {
   created_at: string;
   profiles: {
     username: string;
-  } | null;
+  }[] | null;
 }
 
 export default function AdminPage() {
@@ -48,7 +48,18 @@ export default function AdminPage() {
 
   const fetchPendingShots = async () => {
     try {
-      const { data, error } = await supabase
+      console.log('fetchPendingShots: current user (from context):', user);
+
+      // Also check Supabase client session (may provide extra clues)
+      try {
+        const authRes = await supabase.auth.getUser();
+        console.log('fetchPendingShots: supabase.auth.getUser():', authRes);
+      } catch (authErr) {
+        console.warn('fetchPendingShots: supabase.auth.getUser() failed:', authErr);
+      }
+
+      // Execute the query and capture the full result object for richer logging
+      const result: any = await supabase
         .from('shots')
         .select(`
           id,
@@ -58,16 +69,50 @@ export default function AdminPage() {
           user_id,
           is_approved,
           created_at,
-          profiles (
+          profiles!shots_user_id_fkey (
             username
           )
         `)
         .eq('is_approved', false)
         .order('created_at', { ascending: false });
 
-      if (error) {
-        console.error('Error fetching shots:', error);
-        return;
+      const { data, error, status } = result || {};
+
+      if (error || !data) {
+        // Log everything we got from Supabase so we can debug opaque `{}` errors
+        try {
+          console.error('Error fetching shots: full result ->', {
+            status,
+            error,
+            data,
+            keys: data ? Object.keys(data) : undefined,
+            typeofError: typeof error,
+            errorMessage: (error as any)?.message,
+            errorDetails: (error as any)?.details,
+            errorHint: (error as any)?.hint,
+            stringified: (() => {
+              try {
+                return JSON.stringify({ status, error, data }, null, 2);
+              } catch (e) {
+                return 'Could not stringify result';
+              }
+            })(),
+          });
+
+          // Extra low-level inspection: log raw result and its property names
+          try {
+            console.log('fetchPendingShots: raw result object:', result);
+            console.log('fetchPendingShots: result constructor name:', result?.constructor?.name);
+            console.log('fetchPendingShots: own property names:', Object.getOwnPropertyNames(result || {}));
+            console.log('fetchPendingShots: own property descriptors:', Object.getOwnPropertyDescriptors(result || {}));
+          } catch (inspectErr) {
+            console.warn('fetchPendingShots: failed low-level inspection:', inspectErr);
+          }
+        } catch (logErr) {
+          console.error('Error fetching shots (and failed to stringify result):', result, logErr);
+        }
+
+        if (!Array.isArray(data)) return;
       }
 
       setShots(data || []);
@@ -167,10 +212,7 @@ export default function AdminPage() {
         promoted_at: new Date().toISOString()
       };
 
-      // If promoting to admin, also set is_admin flag
-      if (newRole === 'admin') {
-        updateData.is_admin = true;
-      }
+      // use role field only; no separate is_admin flag needed
 
       const { error: updateError } = await supabase
         .from('profiles')
@@ -330,7 +372,7 @@ export default function AdminPage() {
                       <h3 className="font-semibold text-lg mb-2">{shot.title}</h3>
                       <p className="text-gray-400 text-sm mb-3">{shot.description}</p>
                       <div className="text-xs text-gray-500 mb-4">
-                        Por: @{shot.profiles?.username || 'Usuario desconocido'} • {formatDate(shot.created_at)}
+                        Por: @{shot.profiles?.[0]?.username || 'Usuario desconocido'} • {formatDate(shot.created_at)}
                       </div>
                       <div className="flex space-x-2">
                         <button
