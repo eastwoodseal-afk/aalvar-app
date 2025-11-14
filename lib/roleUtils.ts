@@ -37,7 +37,7 @@ export const ROLE_PERMISSIONS = {
     canApproveShots: false,
     canManageUsers: false,
     canAccessAdmin: false,
-    sections: ['main-wall', 'saved-shots']
+  sections: ['main-wall', 'shots-guardados']
   },
   member: {
     canViewMainWall: true,
@@ -46,7 +46,7 @@ export const ROLE_PERMISSIONS = {
     canApproveShots: false,
     canManageUsers: false,
     canAccessAdmin: false,
-    sections: ['main-wall', 'saved-shots', 'my-shots', 'create-shots']
+  sections: ['main-wall', 'shots-guardados', 'my-shots', 'create-shots']
   },
   admin: {
     canViewMainWall: true,
@@ -55,7 +55,7 @@ export const ROLE_PERMISSIONS = {
     canApproveShots: true,
     canManageUsers: true,
     canAccessAdmin: true,
-    sections: ['main-wall', 'saved-shots', 'my-shots', 'create-shots', 'admin-panel']
+  sections: ['main-wall', 'shots-guardados', 'my-shots', 'create-shots', 'admin-panel']
   },
   superadmin: {
     canViewMainWall: true,
@@ -65,7 +65,7 @@ export const ROLE_PERMISSIONS = {
     canManageUsers: true,
     canAccessAdmin: true,
     canManageAdmins: true,
-    sections: ['main-wall', 'saved-shots', 'my-shots', 'create-shots', 'admin-panel']
+  sections: ['main-wall', 'shots-guardados', 'my-shots', 'create-shots', 'admin-panel']
   }
 };
 

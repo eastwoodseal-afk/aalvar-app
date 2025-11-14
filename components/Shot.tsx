@@ -15,6 +15,7 @@ export default function Shot({
   isAdminMode = false,
   onApprove,
   onReject,
+  onOpenShot,
 }: {
   isLoggedIn: boolean
   shotData: any
@@ -22,6 +23,7 @@ export default function Shot({
   isAdminMode?: boolean
   onApprove?: (id: number) => void
   onReject?: (id: number) => void
+  onOpenShot?: (shotData: any) => void
 }) {
   const { user } = useAuth()
   const [isSaved, setIsSaved] = useState(isInitiallySaved)
@@ -69,7 +71,14 @@ export default function Shot({
     }
   }
 
-  const handleImageClick = () => setIsModalOpen(true)
+  const handleImageClick = () => {
+    if (onOpenShot) {
+      onOpenShot(shotData)
+      return
+    }
+
+    setIsModalOpen(true)
+  }
   const handleCloseModal = () => setIsModalOpen(false)
   const handleCloseSaveModal = () => setIsSaveModalOpen(false)
 
@@ -132,7 +141,7 @@ export default function Shot({
         </div>
       </div>
 
-      {isModalOpen && <ShotModal shotData={shotData} onClose={handleCloseModal} />}
+  {isModalOpen && <ShotModal shotData={shotData} onClose={handleCloseModal} showDelete={isAdminMode} />}
       {isSaveModalOpen && <SaveToBoardModal shotId={shotData.id} onClose={handleCloseSaveModal} />}
     </>
   )

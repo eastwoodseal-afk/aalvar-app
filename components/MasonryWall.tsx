@@ -11,8 +11,29 @@ type ShotData = {
   title: string
   description: string
   user_id: string
+  profiles?: {
+    username: string
+  }[] | null
 }
 
+/**
+ * MasonryWall - Componente que muestra una cuadrícula de shots con diseño masonry
+ * 
+ * @param props
+ * @param props.isLoggedIn - Si true, muestra el botón de guardar en cada shot
+ * @param props.savedShotIds - Set de IDs de shots que el usuario ha guardado
+ * @param props.userFilter - Si se provee, muestra solo shots del usuario especificado (usado en "Mis Shots")
+ * @param props.showOnlySaved - Si true, muestra solo shots guardados por el usuario (usado en "Shots Guardados")
+ * @param props.isAdminMode - Si true, muestra shots pendientes y controles de aprobación (usado en Panel Admin)
+ * @param props.onApprove - Callback para aprobar shots (solo usado en Panel Admin)
+ * @param props.onReject - Callback para rechazar shots (solo usado en Panel Admin)
+ * 
+ * Uso según contexto:
+ * - Muro Principal: Solo necesita isLoggedIn y savedShotIds (muestra shots is_approved=true, independiente de is_active)
+ * - Mis Shots: Añade userFilter
+ * - Shots Guardados: Añade showOnlySaved=true
+ * - Panel Admin: Usa isAdminMode=true y los callbacks
+ */
 export default function MasonryWall({
   isLoggedIn,
   savedShotIds,
@@ -21,6 +42,7 @@ export default function MasonryWall({
   isAdminMode = false,
   onApprove,
   onReject,
+  onOpenShot,
 }: {
   isLoggedIn: boolean
   savedShotIds: Set<number>
@@ -29,6 +51,7 @@ export default function MasonryWall({
   isAdminMode?: boolean
   onApprove?: (id: number) => void
   onReject?: (id: number) => void
+  onOpenShot?: (shotData: any) => void
 }) {
   const [shots, setShots] = useState<ShotData[]>([])
   const [loading, setLoading] = useState(true)
@@ -40,7 +63,11 @@ export default function MasonryWall({
         setLoading(true)
         console.log("Fetching shots with params:", { userFilter, showOnlySaved, isAdminMode })
         
-        let query = supabase.from("shots").select("id, title, image_url, description, user_id, is_approved, is_active")
+        // Include creator username via the profiles relationship so parent pages (admin modal etc.)
+        // can show the correct username instead of falling back to 'desconocido'.
+        let query = supabase
+          .from("shots")
+          .select(`id, title, image_url, description, user_id, is_approved, is_active, profiles!shots_user_id_fkey ( username )`)
 
         if (!isAdminMode) {
           if (userFilter) {
@@ -48,9 +75,9 @@ export default function MasonryWall({
             query = query.eq("user_id", userFilter).eq("is_active", true)
             console.log("Query for user shots:", userFilter)
           } else {
-            // Main wall: show all approved AND active shots
-            query = query.eq("is_approved", true).eq("is_active", true)
-            console.log("Query for main wall: approved and active shots")
+            // Main wall: show all approved shots (active or inactive)
+            query = query.eq("is_approved", true)
+            console.log("Query for main wall: approved shots only")
           }
         } else {
           // Admin mode: show pending shots
@@ -125,6 +152,7 @@ export default function MasonryWall({
           isAdminMode={isAdminMode}
           onApprove={onApprove}
           onReject={onReject}
+          onOpenShot={onOpenShot}
         />
       ))}
     </Masonry>

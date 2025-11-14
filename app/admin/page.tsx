@@ -9,6 +9,9 @@ import { hasPermission, UserRole } from '../../lib/roleUtils';
 import UserSearch from '../../components/UserSearch';
 import RoleManager from '../../components/RoleManager';
 import { useRouter } from 'next/navigation';
+import Header from '../../components/Header';
+import MasonryWall from '../../components/MasonryWall';
+import AdminShotModal from '../../components/AdminShotModal';
 
 interface Shot {
   id: string;
@@ -29,6 +32,8 @@ export default function AdminPage() {
   const [shots, setShots] = useState<Shot[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'shots' | 'promote-members' | 'promote-admins' | 'manage-admins'>('shots');
+  const [selectedShot, setSelectedShot] = useState<Shot | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   useEffect(() => {
     if (!authLoading) {
@@ -135,8 +140,8 @@ export default function AdminPage() {
         return;
       }
 
-      // Remove from pending list
-      setShots(prev => prev.filter(shot => shot.id !== shotId));
+  // Remove from pending list
+  setShots(prev => prev.filter(shot => shot.id !== shotId));
 
       // Send notification to shot creator
       const shot = shots.find(s => s.id === shotId);
@@ -185,15 +190,38 @@ export default function AdminPage() {
     }
   };
 
+  const openAdminModal = (shot: Shot | any) => {
+    setSelectedShot(shot)
+    setIsModalOpen(true)
+  }
+
+  const closeAdminModal = () => {
+    setSelectedShot(null)
+    setIsModalOpen(false)
+  }
+
   const handlePromoteUser = async (userId: string, newRole: UserRole) => {
     if (!user) return;
 
     try {
+      console.log('handlePromoteUser: starting promotion', { userId, newRole, currentUserRole: user.role });
+
       // Get current user for logging
-      const { data: { user: currentUser } } = await supabase.auth.getUser();
-      if (!currentUser) return;
+      const { data: { user: currentUser }, error: authError } = await supabase.auth.getUser();
+      if (authError) {
+        console.error('handlePromoteUser: error getting current user from auth', authError);
+        alert('Error obteniendo tu usuario actual');
+        return { success: false };
+      }
+      if (!currentUser) {
+        console.error('handlePromoteUser: no current user in auth');
+        alert('No se pudo obtener el usuario actual');
+        return { success: false };
+      }
+      console.log('handlePromoteUser: current user from auth', { id: currentUser.id, email: currentUser.email });
 
       // Get the user being promoted
+      console.log('handlePromoteUser: fetching target user', { userId });
       const { data: targetUser, error: fetchError } = await supabase
         .from('profiles')
         .select('username, role')
@@ -201,9 +229,16 @@ export default function AdminPage() {
         .single();
 
       if (fetchError) {
-        console.error('Error fetching target user:', fetchError);
-        return;
+        console.error('handlePromoteUser: error fetching target user', fetchError);
+        alert(`Error: No se pudo obtener el perfil del usuario. ${(fetchError as any)?.message || ''}`);
+        return { success: false };
       }
+      if (!targetUser) {
+        console.error('handlePromoteUser: target user not found');
+        alert('Error: Usuario no encontrado');
+        return { success: false };
+      }
+      console.log('handlePromoteUser: target user fetched', { username: targetUser.username, role: targetUser.role });
 
       // Update user role
       const updateData: any = { 
@@ -211,21 +246,23 @@ export default function AdminPage() {
         promoted_by: currentUser.id,
         promoted_at: new Date().toISOString()
       };
+      console.log('handlePromoteUser: attempting role update', { userId, updateData });
 
-      // use role field only; no separate is_admin flag needed
-
-      const { error: updateError } = await supabase
+      const { error: updateError, data: updateData_result } = await supabase
         .from('profiles')
         .update(updateData)
         .eq('id', userId);
 
       if (updateError) {
-        console.error('Error updating user role:', updateError);
-        return;
+        console.error('handlePromoteUser: error updating user role in profiles', { error: updateError, code: (updateError as any)?.code, message: (updateError as any)?.message });
+        alert(`Error al actualizar el rol: ${(updateError as any)?.message || 'Error desconocido'}`);
+        return { success: false };
       }
+      console.log('handlePromoteUser: role update succeeded', { updateData_result });
 
       // Log the promotion
-      await supabase
+      console.log('handlePromoteUser: inserting into role_promotions');
+      const { error: promError } = await supabase
         .from('role_promotions')
         .insert({
           user_id: userId,
@@ -236,8 +273,15 @@ export default function AdminPage() {
           created_at: new Date().toISOString(),
         });
 
+      if (promError) {
+        console.error('handlePromoteUser: error inserting role_promotions', promError);
+      } else {
+        console.log('handlePromoteUser: role_promotions insertion succeeded');
+      }
+
       // Send notification to promoted user
-      await supabase
+      console.log('handlePromoteUser: inserting notification');
+      const { error: notifError } = await supabase
         .from('notifications')
         .insert({
           user_id: userId,
@@ -248,10 +292,19 @@ export default function AdminPage() {
           created_at: new Date().toISOString(),
         });
 
+      if (notifError) {
+        console.error('handlePromoteUser: error inserting notification', notifError);
+      } else {
+        console.log('handlePromoteUser: notification insertion succeeded');
+      }
+
+      console.log('handlePromoteUser: promotion complete, showing success alert');
       alert(`Usuario promovido a ${newRole === 'member' ? 'Miembro' : 'Administrador'} correctamente`);
+      return { success: true, newRole };
     } catch (error) {
-      console.error('Error promoting user:', error);
-      alert('Error al promover usuario');
+      console.error('handlePromoteUser: unexpected error', error);
+      alert(`Error inesperado: ${(error as any)?.message || 'Desconocido'}`);
+      return { success: false };
     }
   };
 
@@ -283,7 +336,8 @@ export default function AdminPage() {
 
   return (
     <div className="min-h-screen bg-black text-white">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+  <Header />
+  <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">
           <h1 className="text-3xl font-bold">Panel de Administración</h1>
           <p className="text-gray-400 mt-2">
@@ -350,48 +404,25 @@ export default function AdminPage() {
         {activeTab === 'shots' && (
           <div>
             <h2 className="text-xl font-semibold mb-6">Shots Pendientes de Aprobación</h2>
-            
-            {loading ? (
-              <div className="text-center py-8">
-                <div className="text-gray-400">Cargando shots pendientes...</div>
-              </div>
-            ) : shots.length === 0 ? (
-              <div className="text-center py-8">
-                <div className="text-gray-400">No hay shots pendientes de aprobación</div>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {shots.map((shot) => (
-                  <div key={shot.id} className="bg-gray-900 rounded-lg overflow-hidden">
-                    <img
-                      src={shot.image_url}
-                      alt={shot.title}
-                      className="w-full h-48 object-cover"
-                    />
-                    <div className="p-4">
-                      <h3 className="font-semibold text-lg mb-2">{shot.title}</h3>
-                      <p className="text-gray-400 text-sm mb-3">{shot.description}</p>
-                      <div className="text-xs text-gray-500 mb-4">
-                        Por: @{shot.profiles?.[0]?.username || 'Usuario desconocido'} • {formatDate(shot.created_at)}
-                      </div>
-                      <div className="flex space-x-2">
-                        <button
-                          onClick={() => handleApproveShot(shot.id)}
-                          className="flex-1 bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 transition-colors"
-                        >
-                          ✅ Aprobar
-                        </button>
-                        <button
-                          onClick={() => handleRejectShot(shot.id)}
-                          className="flex-1 bg-red-600 text-white py-2 px-4 rounded-md hover:bg-red-700 transition-colors"
-                        >
-                          ❌ Rechazar
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
+
+            {/* Use the MasonryWall in admin mode. It will render Shot cards and show admin controls.
+                We pass our approve/reject handlers and a custom onOpenShot to show the admin modal */}
+            <MasonryWall
+              isLoggedIn={!!user}
+              savedShotIds={new Set<number>()}
+              isAdminMode={true}
+              onApprove={(id: number) => handleApproveShot(String(id))}
+              onReject={(id: number) => handleRejectShot(String(id))}
+              onOpenShot={(shot) => openAdminModal(shot)}
+            />
+
+            {isModalOpen && selectedShot && (
+              <AdminShotModal
+                shotData={selectedShot}
+                onClose={closeAdminModal}
+                onApprove={(id) => handleApproveShot(String(id))}
+                onReject={(id) => handleRejectShot(String(id))}
+              />
             )}
           </div>
         )}

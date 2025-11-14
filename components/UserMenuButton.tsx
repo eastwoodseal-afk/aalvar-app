@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from "react"
 import type { User } from "@supabase/supabase-js"
 import type { UserWithRole } from "../lib/roleUtils"
 import { supabase } from "../lib/supabase"
+import { canAccessSection } from "../lib/roleUtils"
 import Link from "next/link"
 import CreateShotModal from "./CreateShotModal"
 
@@ -27,6 +28,11 @@ export default function UserMenuButton({ user }: { user: User | UserWithRole }) 
     }
     fetchUsername()
   }, [user.id, user.email])
+
+  // Determine if the current user role is allowed to create shots.
+  // If the auth `user` object doesn't include a `role` (raw Supabase User),
+  // this will evaluate to false and the menu will show the disabled label.
+  const hasCreatePermission = (user as any)?.role ? canAccessSection((user as any).role, 'create-shots') : false
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -63,16 +69,27 @@ export default function UserMenuButton({ user }: { user: User | UserWithRole }) 
           <Link href="/mis-shots" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
             Mis Shots
           </Link>
-          <Link href="/saved-shots" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+          <Link href="/shots-guardados" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
             Shots Guardados
           </Link>
 
-          <button
-            onClick={() => setIsCreateModalOpen(true)}
-            className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-          >
-            Crear un Shot
-          </button>
+          {/* Create option: enabled for users with permission, otherwise show disabled label */}
+          {hasCreatePermission ? (
+            <button
+              onClick={() => setIsCreateModalOpen(true)}
+              className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+            >
+              Crear un Shot
+            </button>
+          ) : (
+            <div
+              className="block w-full text-left px-4 py-2 text-sm text-gray-400 cursor-not-allowed"
+              title="Disponible para miembros"
+              aria-disabled="true"
+            >
+              Crear un Shot — disponible para miembros
+            </div>
+          )}
 
           <Link href="/admin" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
             Panel de Administración

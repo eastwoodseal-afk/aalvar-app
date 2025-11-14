@@ -9,7 +9,7 @@ import { UserWithRole, UserRole, getRoleDisplayName } from '../lib/roleUtils';
 interface UserSearchProps {
   searchRole: UserRole;
   targetRole: UserRole;
-  onPromote: (userId: string, newRole: UserRole) => Promise<void>;
+  onPromote: (userId: string, newRole: UserRole) => Promise<{ success: boolean; newRole?: UserRole } | void>;
   title: string;
   description: string;
 }
@@ -25,6 +25,7 @@ export default function UserSearch({
   const [users, setUsers] = useState<UserWithRole[]>([]);
   const [selectedUsers, setSelectedUsers] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [promoting, setPromoting] = useState(false);
 
   useEffect(() => {
@@ -37,7 +38,9 @@ export default function UserSearch({
 
   const searchUsers = async () => {
     setLoading(true);
+    setError(null);
     try {
+      // First, try to search with role filter
       const { data, error } = await supabase
         .from('profiles')
         .select('id, username, role, created_at, promoted_by, promoted_at')
@@ -46,24 +49,60 @@ export default function UserSearch({
         .limit(10);
 
       if (error) {
-        console.error('Error searching users:', error);
-        return;
+        console.error('Error searching users with role filter:', error);
+        // Try fallback: search without role filter to diagnose the issue
+        try {
+          const { data: fallbackData, error: fallbackError } = await supabase
+            .from('profiles')
+            .select('id, username, role, created_at, promoted_by, promoted_at')
+            .ilike('username', `%${searchTerm}%`)
+            .limit(10);
+
+          if (fallbackError) {
+            console.error('Fallback search also failed:', fallbackError);
+            setError((fallbackError as any)?.message || 'Error buscando usuarios');
+            return;
+          }
+
+          // Fallback succeeded; filter by role locally
+          const allUsers = (fallbackData || []).map(profile => ({
+            id: profile.id,
+            email: '',
+            username: profile.username,
+            role: profile.role || 'subscriber',
+            created_at: profile.created_at,
+            promoted_by: profile.promoted_by,
+            promoted_at: profile.promoted_at,
+          }));
+
+          const filtered = allUsers.filter(u => u.role === searchRole);
+          setUsers(filtered);
+          if (filtered.length === 0 && allUsers.length > 0) {
+            setError(`No se encontraron usuarios con rol ${searchRole}. (${allUsers.length} usuarios encontrados con ese username)`);
+          }
+          return;
+        } catch (fallbackErr) {
+          console.error('Unexpected error in fallback search:', fallbackErr);
+          setError('Error inesperado al buscar usuarios');
+          return;
+        }
       }
 
-      // Convert to UserWithRole format (we'll need to get email from auth if needed)
+      // Convert to UserWithRole format
       const usersWithRole: UserWithRole[] = (data || []).map(profile => ({
         id: profile.id,
-        email: '', // We'll show username instead
+        email: '',
         username: profile.username,
         role: profile.role || 'subscriber',
         created_at: profile.created_at,
         promoted_by: profile.promoted_by,
         promoted_at: profile.promoted_at,
-  }));
+      }));
 
-  setUsers(usersWithRole);
+      setUsers(usersWithRole);
     } catch (error) {
-      console.error('Error in searchUsers:', error);
+      console.error('Unexpected error in searchUsers:', error);
+      setError('Error inesperado al buscar usuarios');
     } finally {
       setLoading(false);
     }
@@ -85,14 +124,19 @@ export default function UserSearch({
     setPromoting(true);
     try {
       for (const userId of selectedUsers) {
-        await onPromote(userId, targetRole);
+        const res = await onPromote(userId, targetRole);
+
+        // If the promotion succeeded, update the user locally in the results
+        if (res && (res as any).success) {
+          setUsers(prev => prev.map(u => (u.id === userId ? { ...u, role: targetRole } : u)));
+        } else if (!res) {
+          // If caller didn't return a value but didn't throw, assume success and update locally
+          setUsers(prev => prev.map(u => (u.id === userId ? { ...u, role: targetRole } : u)));
+        }
       }
       
-      // Clear selection and refresh search
+      // Clear selection. We intentionally do not refetch to keep the changed role visible locally.
       setSelectedUsers(new Set());
-      if (searchTerm.length >= 2) {
-        await searchUsers();
-      }
     } catch (error) {
       console.error('Error promoting users:', error);
     } finally {
@@ -137,6 +181,13 @@ export default function UserSearch({
       {loading && (
         <div className="text-center py-4">
           <div className="text-gray-400">Buscando usuarios...</div>
+        </div>
+      )}
+
+      {/* Error */}
+      {error && (
+        <div className="text-center py-4">
+          <div className="text-red-400">{error}</div>
         </div>
       )}
 

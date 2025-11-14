@@ -30,9 +30,98 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         .eq('id', authUser.id)
         .single();
 
-      if (error) {
-        console.error('Error fetching user role:', error);
-        return null;
+      // If profile missing, try to create it using metadata or a pending username stored locally
+      if (error || !data) {
+        console.warn('Profile not found for auth user, attempting to create profile', { authUser, error });
+
+        // Determine username: prefer auth user metadata, then pending localStorage value, then email prefix
+        let usernameCandidate: string | null = null;
+        try {
+          // user_metadata may contain username if passed during signUp
+          // @ts-ignore
+          usernameCandidate = authUser?.user_metadata?.username || null;
+        } catch (e) {
+          usernameCandidate = null;
+        }
+
+        try {
+          const pending = localStorage.getItem('pending_username');
+          if (!usernameCandidate && pending) usernameCandidate = pending;
+        } catch (e) {
+          // ignore localStorage errors
+        }
+
+        if (!usernameCandidate && authUser.email) {
+          usernameCandidate = authUser.email.split('@')[0];
+        }
+
+        const insertData: any = {
+          id: authUser.id,
+          username: usernameCandidate || `user_${Math.random().toString(36).slice(2,8)}`,
+          role: 'subscriber',
+          created_at: new Date().toISOString(),
+        };
+
+        const { data: inserted, error: insertError } = await supabase.from('profiles').insert(insertData).select().single();
+        try { localStorage.removeItem('pending_username'); } catch (e) {}
+
+        if (insertError) {
+          console.error('Error creating profile for auth user:', insertError);
+          return null;
+        }
+
+        // Use the newly inserted profile
+        const created = inserted;
+        const userWithRole: UserWithRole = {
+          id: created.id,
+          email: authUser.email || '',
+          username: created.username,
+          role: created.role || 'subscriber',
+          created_at: created.created_at,
+          promoted_by: created.promoted_by,
+          promoted_at: created.promoted_at,
+        };
+        return userWithRole;
+      }
+      // If profile exists but username is empty, prompt the user AFTER sign-in to choose one (only once)
+      try {
+        if (!data.username || data.username === '') {
+          // Prompt user to enter a username (loop until unique or user cancels)
+          let chosen: string | null = null;
+          try { chosen = localStorage.getItem('pending_username'); } catch (e) { chosen = null; }
+
+          // If no pending username, prompt now
+          if (!chosen) {
+            chosen = window.prompt('Por favor asigna un nombre de usuario para tu cuenta:') || null;
+          }
+
+          while (chosen) {
+            // validate uniqueness
+            const { data: existing, error: existErr } = await supabase.from('profiles').select('id').eq('username', chosen).limit(1);
+            if (existErr) {
+              console.error('Error checking username uniqueness post-OAuth', existErr);
+              break;
+            }
+
+            if (existing && (existing as any).length > 0) {
+              // already exists
+              chosen = window.prompt('El nombre de usuario ya existe. Ingresa otro nombre de usuario:') || null;
+              continue;
+            }
+
+            // unique -> update profile
+            const { error: updErr } = await supabase.from('profiles').update({ username: chosen }).eq('id', authUser.id);
+            try { localStorage.removeItem('pending_username'); } catch (e) {}
+            if (updErr) {
+              console.error('Error updating profile username post-OAuth', updErr);
+            } else {
+              data.username = chosen; // reflect the update locally
+            }
+            break;
+          }
+        }
+      } catch (e) {
+        console.warn('Error handling missing username after OAuth:', e);
       }
 
       // Create UserWithRole object with email from auth user
