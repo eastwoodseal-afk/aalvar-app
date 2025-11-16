@@ -209,6 +209,8 @@ export default function ShotsGuardadosPage() {
                     src={savedShot.shots[0].image_url || "/placeholder.svg"}
                     alt={savedShot.shots[0].description}
                     className="w-full object-cover transition-transform duration-300 group-hover:scale-105 cursor-pointer"
+                    loading="lazy"
+                    decoding="async"
                     onClick={() => setSelectedShot(savedShot.shots[0])}
                   />
 

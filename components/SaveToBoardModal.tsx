@@ -12,9 +12,10 @@ type Board = {
 type SaveToBoardModalProps = {
   shotId: number
   onClose: () => void
+  onSaved?: () => void
 }
 
-export default function SaveToBoardModal({ shotId, onClose }: SaveToBoardModalProps) {
+export default function SaveToBoardModal({ shotId, onClose, onSaved }: SaveToBoardModalProps) {
   const { user } = useAuth()
   const [boards, setBoards] = useState<Board[]>([])
   const [loading, setLoading] = useState(false)
@@ -82,7 +83,8 @@ export default function SaveToBoardModal({ shotId, onClose }: SaveToBoardModalPr
       } else {
         alert("¡Shot guardado!")
       }
-      window.location.reload()
+      onSaved?.()
+      onClose()
     }
     setLoading(false)
   }

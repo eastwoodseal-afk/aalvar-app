@@ -4,31 +4,34 @@ import { useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useAuth } from "../lib/AuthContext"
-import AuthModal from "./AuthModal"
 import UserMenuButton from "./UserMenuButton"
 
-export default function Header() {
-  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false)
+export default function Header({ onLoginClick, onLogoClick }: { onLoginClick?: () => void; onLogoClick?: () => void } = {}) {
   const { user } = useAuth()
 
   const pathname = usePathname()
   const isMyShots = pathname === '/mis-shots'
   const isSavedShots = pathname === '/shots-guardados'
 
-  console.log("El Header ve al usuario así:", user)
-
-  const openAuthModal = () => setIsAuthModalOpen(true)
-  const closeAuthModal = () => setIsAuthModalOpen(false)
 
   return (
-    <>
-      <header className="bg-white shadow-sm border-b sticky top-0 z-50">
+  <header className="bg-gray-950 shadow-sm border-b sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             {/* Logo y Título */}
-            <Link href="/" className="flex-shrink-0 bg-blue-600 text-white font-bold px-3 py-1 rounded-lg mr-4 cursor-pointer hover:opacity-80 transition-opacity">
-              MP
-            </Link>
+            {onLogoClick ? (
+              <button
+                onClick={onLogoClick}
+                className="flex-shrink-0 bg-blue-600 text-white font-bold px-3 py-1 rounded-lg mr-4 cursor-pointer hover:opacity-80 transition-opacity"
+                title="Ir al inicio"
+              >
+                MP
+              </button>
+            ) : (
+              <Link href="/" className="flex-shrink-0 bg-blue-600 text-white font-bold px-3 py-1 rounded-lg mr-4 cursor-pointer hover:opacity-80 transition-opacity" title="Inicio">
+                MP
+              </Link>
+            )}
 
             {/* Título sin Link */}
             <div className="hidden md:block">
@@ -83,7 +86,7 @@ export default function Header() {
                 <UserMenuButton user={user} />
               ) : (
                 <button
-                  onClick={openAuthModal}
+                  onClick={onLoginClick}
                   className="bg-black text-white px-4 py-2 rounded-full hover:bg-gray-800 transition-colors"
                 >
                   Iniciar Sesión
@@ -93,8 +96,5 @@ export default function Header() {
           </div>
         </div>
       </header>
-
-      {isAuthModalOpen && <AuthModal onClose={closeAuthModal} />}
-    </>
   )
 }

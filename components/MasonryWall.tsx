@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo, useRef } from "react"
 import Masonry from "react-masonry-css"
 import { supabase } from "../lib/supabase"
 import Shot from "./Shot"
@@ -57,55 +57,148 @@ export default function MasonryWall({
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
+  // Infinite scroll (solo muro principal: sin filtros, sin admin, sin guardados)
+  const enableInfinite = useMemo(() => !isAdminMode && !userFilter && !showOnlySaved, [isAdminMode, userFilter, showOnlySaved])
+  const PAGE_SIZE = 30
+  const [page, setPage] = useState(0)
+  const [hasMore, setHasMore] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const sentinelRef = useRef<HTMLDivElement | null>(null)
+  const seenIdsRef = useRef<Set<number>>(new Set())
+
+  // Initial fetch
   useEffect(() => {
-    const fetchShots = async () => {
+    let canceled = false
+
+    const fetchInitial = async () => {
       try {
         setLoading(true)
-        console.log("Fetching shots with params:", { userFilter, showOnlySaved, isAdminMode })
-        
-        // Include creator username via the profiles relationship so parent pages (admin modal etc.)
-        // can show the correct username instead of falling back to 'desconocido'.
-        let query = supabase
-          .from("shots")
-          .select(`id, title, image_url, description, user_id, is_approved, is_active, profiles!shots_user_id_fkey ( username )`)
+        setError(null)
+        setShots([])
+        setPage(0)
+        setHasMore(true)
+        seenIdsRef.current = new Set()
 
-        if (!isAdminMode) {
-          if (userFilter) {
-            // Mis Shots: show only active shots from this user
-            query = query.eq("user_id", userFilter).eq("is_active", true)
-            console.log("Query for user shots:", userFilter)
-          } else {
-            // Main wall: show all approved shots (active or inactive)
-            query = query.eq("is_approved", true)
-            console.log("Query for main wall: approved shots only")
-          }
+        if (enableInfinite) {
+          // First page for main wall (approved only)
+          const { data, error: fetchError } = await supabase
+            .from("shots")
+            .select(`id, title, image_url, description, user_id, is_approved, is_active, profiles!shots_user_id_fkey ( username )`)
+            .eq("is_approved", true)
+            .order("created_at", { ascending: false })
+            .range(0, PAGE_SIZE - 1)
+
+          if (fetchError) throw fetchError
+          if (canceled) return
+
+          const unique = (data || []).filter((s) => {
+            const exists = seenIdsRef.current.has(s.id)
+            if (!exists) seenIdsRef.current.add(s.id)
+            return !exists
+          })
+          setShots(unique)
+          setHasMore((data || []).length === PAGE_SIZE)
+          setPage(1)
         } else {
-          // Admin mode: show pending shots
-          query = query.or("is_approved.eq.false,is_approved.is.null")
-          console.log("Query for admin mode: pending shots")
+          // Non-infinite modes: fetch all with existing filters
+          let query = supabase
+            .from("shots")
+            .select(`id, title, image_url, description, user_id, is_approved, is_active, profiles!shots_user_id_fkey ( username )`)
+
+          if (!isAdminMode) {
+            if (userFilter) {
+              query = query.eq("user_id", userFilter).eq("is_active", true)
+            } else {
+              query = query.eq("is_approved", true)
+            }
+          } else {
+            query = query.or("is_approved.eq.false,is_approved.is.null")
+          }
+
+          const { data, error: fetchError } = await query.order("created_at", { ascending: false })
+          if (fetchError) throw fetchError
+          if (canceled) return
+          setShots(data || [])
         }
-
-        const { data, error: fetchError } = await query.order("created_at", { ascending: false })
-
-        if (fetchError) {
-          throw fetchError
-        }
-
-        console.log("Fetched shots data:", data)
-        setShots(data || [])
       } catch (err: any) {
-        setError(err.message)
-        console.error("Error fetching shots:", err)
+        if (!canceled) {
+          console.error("Error fetching shots (initial):", err)
+          setError(err.message)
+        }
       } finally {
-        setLoading(false)
+        if (!canceled) setLoading(false)
       }
     }
 
-    fetchShots()
-  }, [userFilter, showOnlySaved, isAdminMode])
+    fetchInitial()
+    return () => {
+      canceled = true
+    }
+  }, [enableInfinite, userFilter, showOnlySaved, isAdminMode])
+
+  // Load more when sentinel is visible
+  useEffect(() => {
+    if (!enableInfinite) return
+    if (!hasMore || loading || loadingMore) return
+
+    const el = sentinelRef.current
+    if (!el) return
+
+    const io = new IntersectionObserver((entries) => {
+      const first = entries[0]
+      if (first && first.isIntersecting) {
+        // Fetch next page
+        ;(async () => {
+          try {
+            setLoadingMore(true)
+            const from = page * PAGE_SIZE
+            const to = from + PAGE_SIZE - 1
+            const { data, error: fetchError } = await supabase
+              .from("shots")
+              .select(`id, title, image_url, description, user_id, is_approved, is_active, profiles!shots_user_id_fkey ( username )`)
+              .eq("is_approved", true)
+              .order("created_at", { ascending: false })
+              .range(from, to)
+
+            if (fetchError) throw fetchError
+
+            const unique = (data || []).filter((s) => {
+              const exists = seenIdsRef.current.has(s.id)
+              if (!exists) seenIdsRef.current.add(s.id)
+              return !exists
+            })
+            setShots((prev) => (unique.length > 0 ? [...prev, ...unique] : prev))
+            setHasMore((data || []).length === PAGE_SIZE)
+            setPage((p) => p + 1)
+          } catch (err) {
+            console.error("Error fetching more shots:", err)
+            setHasMore(false)
+          } finally {
+            setLoadingMore(false)
+          }
+        })()
+      }
+    }, { rootMargin: "400px 0px" })
+
+    io.observe(el)
+    return () => io.disconnect()
+  }, [enableInfinite, hasMore, loading, loadingMore, page])
 
   if (loading) {
-    return <p className="text-center mt-8 text-gray-400">Cargando shots...</p>
+    // Skeleton grid with deterministic heights to avoid hydration mismatches
+    const skeletonCols = [1, 2, 3, 4, 5, 6]
+    const heights = [180, 220, 260, 200, 240, 300]
+    return (
+      <div className="flex w-auto -ml-4">
+        {skeletonCols.map((col) => (
+          <div key={col} className="pl-4 bg-clip-padding w-1/6 space-y-4">
+            {heights.map((h, i) => (
+              <div key={i} className="animate-pulse bg-gray-800 rounded-xl" style={{ height: h }} />
+            ))}
+          </div>
+        ))}
+      </div>
+    )
   }
 
   if (error) {
@@ -132,29 +225,37 @@ export default function MasonryWall({
   }
 
   return (
-    <Masonry
-      breakpointCols={{
-        default: 6,
-        1280: 6,
-        1024: 6,
-        768: 4,
-        640: 3,
-      }}
-      className="flex w-auto -ml-4"
-      columnClassName="pl-4 bg-clip-padding"
-    >
-      {shotsToDisplay.map((shot) => (
-        <Shot
-          key={shot.id}
-          isLoggedIn={isLoggedIn}
-          shotData={shot}
-          isInitiallySaved={savedShotIds.has(shot.id)}
-          isAdminMode={isAdminMode}
-          onApprove={onApprove}
-          onReject={onReject}
-          onOpenShot={onOpenShot}
-        />
-      ))}
-    </Masonry>
+    <>
+      <Masonry
+        breakpointCols={{
+          default: 6,
+          1280: 6,
+          1024: 6,
+          768: 4,
+          640: 3,
+        }}
+        className="flex w-auto -ml-4"
+        columnClassName="pl-4 bg-clip-padding"
+      >
+        {shotsToDisplay.map((shot) => (
+          <Shot
+            key={shot.id}
+            isLoggedIn={isLoggedIn}
+            shotData={shot}
+            isInitiallySaved={savedShotIds.has(shot.id)}
+            isAdminMode={isAdminMode}
+            onApprove={onApprove}
+            onReject={onReject}
+            onOpenShot={onOpenShot}
+          />
+        ))}
+      </Masonry>
+      {/* Sentinel for infinite scroll (only active on main wall)*/}
+      {enableInfinite && hasMore && (
+        <div ref={sentinelRef} className="w-full py-6 flex justify-center">
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-gray-700 border-t-transparent" />
+        </div>
+      )}
+    </>
   )
 }

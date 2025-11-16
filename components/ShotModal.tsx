@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import Image from "next/image"
 import { useAuth } from "../lib/AuthContext"
 import { supabase } from "../lib/supabase"
 
@@ -68,9 +69,8 @@ export default function ShotModal({ shotData, onClose, showDelete = true }: { sh
 
       if (error) throw error
 
-      alert("Shot eliminado exitosamente")
-      onClose()
-      window.location.reload()
+  alert("Shot eliminado exitosamente")
+  onClose()
     } catch (error: any) {
       console.error("Error deleting shot:", error)
       alert("Error al eliminar el shot: " + error.message)
@@ -135,12 +135,13 @@ export default function ShotModal({ shotData, onClose, showDelete = true }: { sh
 
         {/* Content */}
         <div className="p-6">
-          {/* Imagen a tamaño original */}
-          <div className="mb-6 rounded-lg overflow-hidden bg-gray-100">
+          {/* Imagen a tamaño completo */}
+          <div className="mb-6 rounded-lg overflow-hidden bg-gray-100 flex items-center justify-center w-full">
             <img
               src={shotData.image_url || "/placeholder.svg"}
-              alt={shotData.description}
-              className="w-full h-auto object-contain max-h-[70vh]"
+              alt={shotData.description || "shot"}
+              className="w-full h-auto object-contain"
+              loading="eager"
             />
           </div>
 

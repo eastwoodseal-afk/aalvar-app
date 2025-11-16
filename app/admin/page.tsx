@@ -34,6 +34,7 @@ export default function AdminPage() {
   const [activeTab, setActiveTab] = useState<'shots' | 'promote-members' | 'promote-admins' | 'manage-admins'>('shots');
   const [selectedShot, setSelectedShot] = useState<Shot | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [showSuccessApproval, setShowSuccessApproval] = useState(false);
 
   useEffect(() => {
     if (!authLoading) {
@@ -140,8 +141,8 @@ export default function AdminPage() {
         return;
       }
 
-  // Remove from pending list
-  setShots(prev => prev.filter(shot => shot.id !== shotId));
+      // Remove from pending list
+      setShots(prev => prev.filter(shot => shot.id !== shotId));
 
       // Send notification to shot creator
       const shot = shots.find(s => s.id === shotId);
@@ -158,7 +159,11 @@ export default function AdminPage() {
           });
       }
 
-      alert('Shot aprobado correctamente');
+      // Show success animation
+      setShowSuccessApproval(true);
+      setTimeout(() => {
+        setShowSuccessApproval(false);
+      }, 1500);
     } catch (error) {
       console.error('Error approving shot:', error);
       alert('Error al aprobar el shot');
@@ -336,8 +341,22 @@ export default function AdminPage() {
 
   return (
     <div className="min-h-screen bg-black text-white">
-  <Header />
-  <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <Header />
+      
+      {/* Success checkmark for approval */}
+      {showSuccessApproval && (
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
+          <div className="bg-gray-900 rounded-lg p-8 text-center">
+            <div className="animate-bounce">
+              <div className="text-6xl text-green-400 mb-4">✓</div>
+            </div>
+            <p className="text-white text-lg font-semibold">¡Shot aprobado con éxito!</p>
+            <p className="text-gray-400 text-sm mt-2">Ahora es visible en el muro principal</p>
+          </div>
+        </div>
+      )}
+      
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">
           <h1 className="text-3xl font-bold">Panel de Administración</h1>
           <p className="text-gray-400 mt-2">

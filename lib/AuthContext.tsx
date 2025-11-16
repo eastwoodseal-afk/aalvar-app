@@ -2,10 +2,11 @@
 
 "use client";
 
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { supabase } from './supabase';
 import { User } from '@supabase/supabase-js';
 import { UserRole, UserWithRole } from './roleUtils';
+import UsernameModal from '@/components/UsernameModal';
 
 interface AuthContextType {
   user: UserWithRole | null;
@@ -21,104 +22,36 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<UserWithRole | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showUsernameModal, setShowUsernameModal] = useState(false);
+  const [pendingUserIdForUsername, setPendingUserIdForUsername] = useState<string | null>(null);
 
   const fetchUserWithRole = async (authUser: User): Promise<UserWithRole | null> => {
     try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('id, username, role, created_at, promoted_by, promoted_at')
-        .eq('id', authUser.id)
-        .single();
+      // Try to fetch profile; if not found, wait briefly and retry because DB trigger creates it on signup
+      let data: any = null;
+      let error: any = null;
+      for (let attempt = 0; attempt < 3; attempt++) {
+        const res = await supabase
+          .from('profiles')
+          .select('id, username, role, created_at, promoted_by, promoted_at')
+          .eq('id', authUser.id)
+          .maybeSingle();
+        data = res.data;
+        error = res.error;
+        if (data && !error) break;
+        await new Promise((r) => setTimeout(r, 300));
+      }
 
-      // If profile missing, try to create it using metadata or a pending username stored locally
+      // If still missing, return null (will retry on next auth state change)
       if (error || !data) {
-        console.warn('Profile not found for auth user, attempting to create profile', { authUser, error });
-
-        // Determine username: prefer auth user metadata, then pending localStorage value, then email prefix
-        let usernameCandidate: string | null = null;
-        try {
-          // user_metadata may contain username if passed during signUp
-          // @ts-ignore
-          usernameCandidate = authUser?.user_metadata?.username || null;
-        } catch (e) {
-          usernameCandidate = null;
-        }
-
-        try {
-          const pending = localStorage.getItem('pending_username');
-          if (!usernameCandidate && pending) usernameCandidate = pending;
-        } catch (e) {
-          // ignore localStorage errors
-        }
-
-        if (!usernameCandidate && authUser.email) {
-          usernameCandidate = authUser.email.split('@')[0];
-        }
-
-        const insertData: any = {
-          id: authUser.id,
-          username: usernameCandidate || `user_${Math.random().toString(36).slice(2,8)}`,
-          role: 'subscriber',
-          created_at: new Date().toISOString(),
-        };
-
-        const { data: inserted, error: insertError } = await supabase.from('profiles').insert(insertData).select().single();
-        try { localStorage.removeItem('pending_username'); } catch (e) {}
-
-        if (insertError) {
-          console.error('Error creating profile for auth user:', insertError);
-          return null;
-        }
-
-        // Use the newly inserted profile
-        const created = inserted;
-        const userWithRole: UserWithRole = {
-          id: created.id,
-          email: authUser.email || '',
-          username: created.username,
-          role: created.role || 'subscriber',
-          created_at: created.created_at,
-          promoted_by: created.promoted_by,
-          promoted_at: created.promoted_at,
-        };
-        return userWithRole;
+        console.warn('Profile not found for auth user after retries', { authUser, error });
+        return null;
       }
       // If profile exists but username is empty, prompt the user AFTER sign-in to choose one (only once)
       try {
         if (!data.username || data.username === '') {
-          // Prompt user to enter a username (loop until unique or user cancels)
-          let chosen: string | null = null;
-          try { chosen = localStorage.getItem('pending_username'); } catch (e) { chosen = null; }
-
-          // If no pending username, prompt now
-          if (!chosen) {
-            chosen = window.prompt('Por favor asigna un nombre de usuario para tu cuenta:') || null;
-          }
-
-          while (chosen) {
-            // validate uniqueness
-            const { data: existing, error: existErr } = await supabase.from('profiles').select('id').eq('username', chosen).limit(1);
-            if (existErr) {
-              console.error('Error checking username uniqueness post-OAuth', existErr);
-              break;
-            }
-
-            if (existing && (existing as any).length > 0) {
-              // already exists
-              chosen = window.prompt('El nombre de usuario ya existe. Ingresa otro nombre de usuario:') || null;
-              continue;
-            }
-
-            // unique -> update profile
-            const { error: updErr } = await supabase.from('profiles').update({ username: chosen }).eq('id', authUser.id);
-            try { localStorage.removeItem('pending_username'); } catch (e) {}
-            if (updErr) {
-              console.error('Error updating profile username post-OAuth', updErr);
-            } else {
-              data.username = chosen; // reflect the update locally
-            }
-            break;
-          }
+          setPendingUserIdForUsername(authUser.id);
+          setShowUsernameModal(true);
         }
       } catch (e) {
         console.warn('Error handling missing username after OAuth:', e);
@@ -140,6 +73,47 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.error('Error in fetchUserWithRole:', error);
       return null;
     }
+  };
+
+  // Handle modal submission for username selection
+  const handleUsernameSubmit = async (rawInput: string): Promise<string | null> => {
+    const normalize = (s: string) => s.trim().toLowerCase();
+    const username = normalize(rawInput);
+    const re = /^[a-z0-9](?:[a-z0-9_.-]*[a-z0-9])?$/;
+    const reserved = new Set([
+      'admin','superadmin','root','support','help','api','auth','login','signup',
+      'settings','profile','profiles','user','users','me','dashboard','admin-panel'
+    ]);
+
+    if (!username) return 'Ingresa un nombre de usuario';
+    if (username.length < 3 || username.length > 15) return 'Debe tener entre 3 y 15 caracteres';
+    if (!re.test(username)) return 'Sólo letras, números, _ . - y debe iniciar/terminar con letra o número';
+    if (reserved.has(username)) return 'Ese nombre está reservado';
+
+    if (!pendingUserIdForUsername) return 'No hay usuario autenticado para actualizar';
+
+    // Try to update directly; rely on DB unique index to detect duplicados
+    const { error: updErr } = await supabase
+      .from('profiles')
+      .update({ username })
+      .eq('id', pendingUserIdForUsername);
+
+    if (updErr) {
+      // Unique violation code in Postgres: 23505
+      const code = (updErr as any).code || (updErr as any).details || '';
+      if (String(code).includes('23505') || (updErr as any).message?.toLowerCase().includes('duplicate')) {
+        return 'Ese nombre ya está en uso';
+      }
+      console.error('Error actualizando username:', updErr);
+      return 'Error guardando el nombre de usuario';
+    }
+
+    // Refresh local state
+    await refreshUserRole();
+    setShowUsernameModal(false);
+    setPendingUserIdForUsername(null);
+    try { localStorage.removeItem('pending_username'); } catch {}
+    return null;
   };
 
   const refreshUserRole = async () => {
@@ -250,6 +224,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   return (
     <AuthContext.Provider value={value}>
       {children}
+      <UsernameModal
+        isOpen={showUsernameModal}
+        onSubmit={handleUsernameSubmit}
+        onCancel={async () => {
+          // Cancelar cierra sesión (policy: no se puede continuar sin username)
+          try {
+            await supabase.auth.signOut();
+          } finally {
+            setShowUsernameModal(false);
+            setPendingUserIdForUsername(null);
+            setUser(null);
+          }
+        }}
+      />
     </AuthContext.Provider>
   );
 }

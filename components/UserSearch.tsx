@@ -2,7 +2,7 @@
 
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { UserWithRole, UserRole, getRoleDisplayName } from '../lib/roleUtils';
 
@@ -27,25 +27,45 @@ export default function UserSearch({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [promoting, setPromoting] = useState(false);
+  const abortRef = useRef<AbortController | null>(null);
+  const requestIdRef = useRef(0);
+  const [debouncedTerm, setDebouncedTerm] = useState('');
 
+  // Debounce search term
   useEffect(() => {
-    if (searchTerm.length >= 2) {
-      searchUsers();
-    } else {
-      setUsers([]);
-    }
+    const t = setTimeout(() => setDebouncedTerm(searchTerm), 300);
+    return () => clearTimeout(t);
   }, [searchTerm]);
 
-  const searchUsers = async () => {
+  useEffect(() => {
+    if (debouncedTerm.length >= 2) {
+      searchUsers(debouncedTerm);
+    } else {
+      // cancel any in-flight
+      if (abortRef.current) {
+        abortRef.current.abort();
+        abortRef.current = null;
+      }
+      setUsers([]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedTerm, searchRole]);
+
+  const searchUsers = async (term: string) => {
     setLoading(true);
     setError(null);
+    // cancel previous
+    if (abortRef.current) abortRef.current.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+    const reqId = ++requestIdRef.current;
     try {
       // First, try to search with role filter
       const { data, error } = await supabase
         .from('profiles')
         .select('id, username, role, created_at, promoted_by, promoted_at')
         .eq('role', searchRole)
-        .ilike('username', `%${searchTerm}%`)
+        .ilike('username', `%${term}%`)
         .limit(10);
 
       if (error) {
@@ -55,7 +75,7 @@ export default function UserSearch({
           const { data: fallbackData, error: fallbackError } = await supabase
             .from('profiles')
             .select('id, username, role, created_at, promoted_by, promoted_at')
-            .ilike('username', `%${searchTerm}%`)
+            .ilike('username', `%${term}%`)
             .limit(10);
 
           if (fallbackError) {
@@ -89,6 +109,8 @@ export default function UserSearch({
       }
 
       // Convert to UserWithRole format
+      if (requestIdRef.current !== reqId || controller.signal.aborted) return; // stale
+
       const usersWithRole: UserWithRole[] = (data || []).map(profile => ({
         id: profile.id,
         email: '',
@@ -104,7 +126,7 @@ export default function UserSearch({
       console.error('Unexpected error in searchUsers:', error);
       setError('Error inesperado al buscar usuarios');
     } finally {
-      setLoading(false);
+      if (requestIdRef.current === reqId) setLoading(false);
     }
   };
 

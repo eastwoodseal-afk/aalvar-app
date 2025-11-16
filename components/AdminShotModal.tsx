@@ -75,7 +75,14 @@ export default function AdminShotModal({
 
         <div className="p-4 grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="md:col-span-2">
-            <img src={shotData.image_url || '/placeholder.svg'} alt={shotData.title} className="w-full h-auto rounded" />
+            <div className="w-full rounded overflow-hidden bg-gray-800 flex items-center justify-center">
+              <img
+                src={shotData.image_url || '/placeholder.svg'}
+                alt={shotData.title}
+                className="w-full h-auto object-contain"
+                loading="eager"
+              />
+            </div>
           </div>
           <div className="md:col-span-1">
             <p className="text-gray-300 mb-4">{shotData.description}</p>

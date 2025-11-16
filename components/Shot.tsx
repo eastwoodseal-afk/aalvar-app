@@ -61,7 +61,7 @@ export default function Shot({
         }
 
         setIsSaved(false)
-        window.location.reload()
+        // window.location.reload() removed to rely on local state
       } catch (error) {
         console.error("Error unsaving shot:", error)
         alert("Error al quitar el shot de guardados")
@@ -81,17 +81,22 @@ export default function Shot({
   }
   const handleCloseModal = () => setIsModalOpen(false)
   const handleCloseSaveModal = () => setIsSaveModalOpen(false)
+  const handleSaved = () => {
+    setIsSaved(true)
+  }
 
   return (
     <>
       <div className="break-inside-avoid mb-4 group cursor-pointer">
         <div className="relative overflow-hidden rounded-xl">
           <img
-            src={shotData.image_url || "/placeholder.svg"}
-            alt={shotData.description}
-            className="w-full object-cover transition-transform duration-300 group-hover:scale-105"
-            onClick={handleImageClick}
-          />
+              src={shotData.image_url || "/placeholder.svg"}
+              alt={shotData.description}
+              className="w-full object-cover transition-transform duration-300 group-hover:scale-105"
+              loading="lazy"
+              decoding="async"
+              onClick={handleImageClick}
+            />
 
           {isLoggedIn && !isAdminMode && (
             <button
@@ -142,7 +147,7 @@ export default function Shot({
       </div>
 
   {isModalOpen && <ShotModal shotData={shotData} onClose={handleCloseModal} showDelete={isAdminMode} />}
-      {isSaveModalOpen && <SaveToBoardModal shotId={shotData.id} onClose={handleCloseSaveModal} />}
+  {isSaveModalOpen && <SaveToBoardModal shotId={shotData.id} onClose={handleCloseSaveModal} onSaved={handleSaved} />}
     </>
   )
 }

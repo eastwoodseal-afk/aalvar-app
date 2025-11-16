@@ -15,7 +15,7 @@ interface BulkUploadProgress {
   errors: string[];
 }
 
-export default function CreateShotModal({ onClose }: { onClose: () => void }) {
+export default function CreateShotModal({ onClose, embedded = false }: { onClose: () => void; embedded?: boolean }) {
   const { user } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const bulkInputRef = useRef<HTMLInputElement>(null);
@@ -381,8 +381,8 @@ export default function CreateShotModal({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
-      <div className="bg-gray-900 rounded-lg max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto">
+    <div className={embedded ? "" : "fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4"}>
+      <div className={embedded ? "bg-gray-900 rounded-lg w-full p-6" : "bg-gray-900 rounded-lg max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto"}>
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-2xl font-bold text-white">Crear un Shot</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-200 text-2xl leading-none">&times;</button>

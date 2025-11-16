@@ -3,6 +3,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
+import Image from 'next/image';
 import { useAuth } from '../../lib/AuthContext';
 import { supabase } from '../../lib/supabase';
 import { canAccessSection } from '../../lib/roleUtils';
@@ -36,11 +37,14 @@ function MisShotsDetailModal({ shot, onClose }: { shot: ShotData; onClose: () =>
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-6">
           {/* Imagen a tamaño normal */}
-          <div className="mb-6 rounded-lg overflow-hidden bg-black flex items-center justify-center max-h-[60vh]">
-            <img
+          <div className="mb-6 rounded-lg overflow-hidden bg-black flex items-center justify-center max-h-[60vh] relative" style={{ minHeight: 240 }}>
+            <Image
               src={shot.image_url || "/placeholder.svg"}
-              alt={shot.description}
-              className="w-full h-auto object-contain"
+              alt={shot.description || 'shot'}
+              fill
+              sizes="(max-width: 768px) 100vw, 80vw"
+              className="object-contain"
+              unoptimized
             />
           </div>
 
@@ -284,6 +288,8 @@ export default function MisShotsPage() {
                     src={shot.image_url || "/placeholder.svg"}
                     alt={shot.description}
                     className="w-full object-cover transition-transform duration-300 group-hover:scale-105 cursor-pointer"
+                    loading="lazy"
+                    decoding="async"
                     onClick={() => setSelectedShot(shot)}
                   />
 

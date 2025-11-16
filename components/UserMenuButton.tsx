@@ -7,10 +7,13 @@ import { supabase } from "../lib/supabase"
 import { canAccessSection } from "../lib/roleUtils"
 import Link from "next/link"
 import CreateShotModal from "./CreateShotModal"
+import { useRouter } from "next/navigation"
 
 export default function UserMenuButton({ user }: { user: User | UserWithRole }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
+  // Ya no usaremos modal directo para crear; navegaremos a la ruta /crear-shot
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
+  const router = useRouter()
   const [username, setUsername] = useState<string>("")
   const menuRef = useRef<HTMLDivElement>(null)
 
@@ -76,7 +79,10 @@ export default function UserMenuButton({ user }: { user: User | UserWithRole }) 
           {/* Create option: enabled for users with permission, otherwise show disabled label */}
           {hasCreatePermission ? (
             <button
-              onClick={() => setIsCreateModalOpen(true)}
+              onClick={() => {
+                setIsMenuOpen(false)
+                router.push('/crear-shot')
+              }}
               className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
             >
               Crear un Shot
@@ -106,7 +112,8 @@ export default function UserMenuButton({ user }: { user: User | UserWithRole }) 
         </div>
       )}
 
-      {isCreateModalOpen && <CreateShotModal onClose={() => setIsCreateModalOpen(false)} />}
+  {/* Mantener compatibilidad: si en algún momento se reactiva el modo modal */}
+  {isCreateModalOpen && <CreateShotModal onClose={() => setIsCreateModalOpen(false)} />}
     </div>
   )
 }
