@@ -10,7 +10,9 @@ type ShotData = {
   image_url: string
   title: string
   description: string
-  user_id: string
+  user_id?: string          // Opcional ahora (solo se usa en modo admin/userFilter)
+  is_approved?: boolean     // Opcional
+  is_active?: boolean       // Opcional
   profiles?: {
     username: string
   }[] | null
@@ -25,6 +27,7 @@ type ShotData = {
  * @param props.userFilter - Si se provee, muestra solo shots del usuario especificado (usado en "Mis Shots")
  * @param props.showOnlySaved - Si true, muestra solo shots guardados por el usuario (usado en "Shots Guardados")
  * @param props.isAdminMode - Si true, muestra shots pendientes y controles de aprobación (usado en Panel Admin)
+ * @param props.searchQuery - Texto de búsqueda para filtrar shots por título, descripción, username
  * @param props.onApprove - Callback para aprobar shots (solo usado en Panel Admin)
  * @param props.onReject - Callback para rechazar shots (solo usado en Panel Admin)
  * 
@@ -40,6 +43,7 @@ export default function MasonryWall({
   userFilter,
   showOnlySaved,
   isAdminMode = false,
+  searchQuery,
   onApprove,
   onReject,
   onOpenShot,
@@ -49,6 +53,7 @@ export default function MasonryWall({
   userFilter?: string
   showOnlySaved?: boolean
   isAdminMode?: boolean
+  searchQuery?: string
   onApprove?: (id: number) => void
   onReject?: (id: number) => void
   onOpenShot?: (shotData: any) => void
@@ -81,10 +86,12 @@ export default function MasonryWall({
 
         if (enableInfinite) {
           // First page for main wall (approved only)
+          // Optimizado: solo campos necesarios para el tile
           const { data, error: fetchError } = await supabase
             .from("shots")
-            .select(`id, title, image_url, description, user_id, is_approved, is_active, profiles!shots_user_id_fkey ( username )`)
+            .select(`id, title, image_url, description, user_id`)
             .eq("is_approved", true)
+            .eq("is_active", true)
             .order("created_at", { ascending: false })
             .range(0, PAGE_SIZE - 1)
 
@@ -101,9 +108,10 @@ export default function MasonryWall({
           setPage(1)
         } else {
           // Non-infinite modes: fetch all with existing filters
+          // Optimizado: solo campos necesarios (agregamos user_id/is_approved para filtros admin)
           let query = supabase
             .from("shots")
-            .select(`id, title, image_url, description, user_id, is_approved, is_active, profiles!shots_user_id_fkey ( username )`)
+            .select(`id, title, image_url, description, user_id, is_approved, is_active`)
 
           if (!isAdminMode) {
             if (userFilter) {
@@ -153,10 +161,12 @@ export default function MasonryWall({
             setLoadingMore(true)
             const from = page * PAGE_SIZE
             const to = from + PAGE_SIZE - 1
+            // Optimizado: solo campos necesarios para tiles
             const { data, error: fetchError } = await supabase
               .from("shots")
-              .select(`id, title, image_url, description, user_id, is_approved, is_active, profiles!shots_user_id_fkey ( username )`)
+              .select(`id, title, image_url, description, user_id`)
               .eq("is_approved", true)
+              .eq("is_active", true)
               .order("created_at", { ascending: false })
               .range(from, to)
 
@@ -205,13 +215,26 @@ export default function MasonryWall({
     return <p className="text-center mt-8 text-red-500">Error: {error}</p>
   }
 
-  const shotsToDisplay = showOnlySaved ? shots.filter((shot) => savedShotIds.has(shot.id)) : shots
+  // Filtrar por búsqueda si hay searchQuery
+  let shotsToDisplay = showOnlySaved ? shots.filter((shot) => savedShotIds.has(shot.id)) : shots
+  
+  if (searchQuery && searchQuery.trim()) {
+    const query = searchQuery.toLowerCase().trim()
+    shotsToDisplay = shotsToDisplay.filter((shot) => {
+      const titleMatch = shot.title?.toLowerCase().includes(query)
+      const descMatch = shot.description?.toLowerCase().includes(query)
+      const usernameMatch = shot.profiles?.[0]?.username?.toLowerCase().includes(query)
+      return titleMatch || descMatch || usernameMatch
+    })
+  }
 
   if (shotsToDisplay.length === 0) {
     return (
       <div className="text-center mt-12">
         <p className="text-gray-400 text-lg">
-          {isAdminMode 
+          {searchQuery && searchQuery.trim()
+            ? `No se encontraron resultados para "${searchQuery}"`
+            : isAdminMode 
             ? "No hay shots pendientes de aprobación." 
             : userFilter 
             ? "No tienes shots creados aún." 

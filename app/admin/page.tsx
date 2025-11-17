@@ -357,12 +357,12 @@ export default function AdminPage() {
       )}
       
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold">Panel de Administración</h1>
-          <p className="text-gray-400 mt-2">
-            Gestiona shots, usuarios y permisos del sistema
-          </p>
-        </div>
+        <section className="max-w-7xl mx-auto text-center py-8 px-8 mb-8">
+          <div className="flex items-center justify-center gap-2 flex-nowrap">
+            <h1 className="text-lg font-bold text-white whitespace-nowrap">Panel de Administración</h1>
+            <p className="text-sm text-gray-300">Gestiona shots, usuarios y permisos del sistema</p>
+          </div>
+        </section>
 
         {/* Tabs */}
         <div className="border-b border-gray-700 mb-8">
@@ -371,7 +371,7 @@ export default function AdminPage() {
               onClick={() => setActiveTab('shots')}
               className={`py-2 px-1 border-b-2 font-medium text-sm ${
                 activeTab === 'shots'
-                  ? 'border-blue-500 text-blue-400'
+                  ? 'border-[#D4AF37] text-[#D4AF37]'
                   : 'border-transparent text-gray-400 hover:text-gray-300'
               }`}
             >
@@ -383,7 +383,7 @@ export default function AdminPage() {
                 onClick={() => setActiveTab('promote-members')}
                 className={`py-2 px-1 border-b-2 font-medium text-sm ${
                   activeTab === 'promote-members'
-                    ? 'border-blue-500 text-blue-400'
+                    ? 'border-[#D4AF37] text-[#D4AF37]'
                     : 'border-transparent text-gray-400 hover:text-gray-300'
                 }`}
               >
@@ -397,7 +397,7 @@ export default function AdminPage() {
                   onClick={() => setActiveTab('promote-admins')}
                   className={`py-2 px-1 border-b-2 font-medium text-sm ${
                     activeTab === 'promote-admins'
-                      ? 'border-blue-500 text-blue-400'
+                      ? 'border-[#D4AF37] text-[#D4AF37]'
                       : 'border-transparent text-gray-400 hover:text-gray-300'
                   }`}
                 >
@@ -408,7 +408,7 @@ export default function AdminPage() {
                   onClick={() => setActiveTab('manage-admins')}
                   className={`py-2 px-1 border-b-2 font-medium text-sm ${
                     activeTab === 'manage-admins'
-                      ? 'border-blue-500 text-blue-400'
+                      ? 'border-[#D4AF37] text-[#D4AF37]'
                       : 'border-transparent text-gray-400 hover:text-gray-300'
                   }`}
                 >

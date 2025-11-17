@@ -131,7 +131,7 @@ export default function SaveToBoardModal({ shotId, onClose, onSaved }: SaveToBoa
             <select
               value={selectedBoardId || ""}
               onChange={(e) => setSelectedBoardId(Number(e.target.value))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-[#D4AF37] focus:border-[#D4AF37]"
             >
               <option value="">-- Sin tablero --</option>
               {boards.map((board) => (
@@ -150,12 +150,12 @@ export default function SaveToBoardModal({ shotId, onClose, onSaved }: SaveToBoa
                 value={newBoardName}
                 onChange={(e) => setNewBoardName(e.target.value)}
                 placeholder="Nombre del nuevo tablero"
-                className="flex-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                className="flex-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-[#D4AF37] focus:border-[#D4AF37]"
               />
               <button
                 onClick={handleCreateBoard}
                 disabled={isCreating}
-                className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 disabled:opacity-50"
+                className="bg-[#D4AF37] text-black px-4 py-2 font-semibold rounded-md hover:brightness-110 disabled:opacity-50"
               >
                 {isCreating ? "..." : "Crear"}
               </button>

@@ -3,6 +3,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { supabase } from './supabase';
 import { User } from '@supabase/supabase-js';
 import { UserRole, UserWithRole } from './roleUtils';
@@ -24,6 +25,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [showUsernameModal, setShowUsernameModal] = useState(false);
   const [pendingUserIdForUsername, setPendingUserIdForUsername] = useState<string | null>(null);
+  const router = useRouter();
 
   const fetchUserWithRole = async (authUser: User): Promise<UserWithRole | null> => {
     try {
@@ -146,7 +148,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const userWithRole = await fetchUserWithRole(session.user);
           setUser(userWithRole);
         } else {
+          // Session lost or signed out: clear user and navigate home to collapse any two-pane context
           setUser(null);
+          try { router.push('/'); } catch {}
         }
         setLoading(false);
       }
@@ -210,6 +214,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
     setUser(null);
+    // Explicit redirect safeguard even though onAuthStateChange also handles it
+    try { router.push('/'); } catch {}
   };
 
   const value = {

@@ -13,8 +13,8 @@ type ShotData = {
   id: number
   image_url: string
   title: string
-  description: string
-  user_id: string
+  description?: string  // Opcional ya que no se usa en el grid
+  user_id?: string      // Opcional ya que no se usa en el grid
 }
 
 type Board = {
@@ -58,9 +58,10 @@ export default function BoardPage() {
       }
 
       const fetchBoardShots = async () => {
+        // Optimizado: solo campos necesarios para el grid
         const { data, error } = await supabase
           .from("board_shots")
-          .select("shot_id, shots(id, title, image_url, description, user_id)")
+          .select("shot_id, shots(id, title, image_url)")
           .eq("board_id", boardId)
 
         if (error) {
@@ -76,8 +77,6 @@ export default function BoardPage() {
             id: shot.id,
             image_url: shot.image_url,
             title: shot.title,
-            description: shot.description,
-            user_id: shot.user_id,
           }))
 
         setShots(formattedShots)
@@ -118,7 +117,7 @@ export default function BoardPage() {
 
       <main className="container mx-auto p-4">
         <div className="mb-6">
-          <button onClick={() => router.push("/mis-shots")} className="text-blue-600 hover:underline mb-4">
+          <button onClick={() => router.push("/mis-shots")} className="text-[#D4AF37] hover:underline mb-4">
             ← Volver a Mis Shots
           </button>
           <h1 className="text-3xl font-bold">{board.name}</h1>

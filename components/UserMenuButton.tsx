@@ -53,6 +53,8 @@ export default function UserMenuButton({ user }: { user: User | UserWithRole }) 
       console.error("Error al cerrar sesión:", error.message)
     } else {
       setIsMenuOpen(false)
+      // Redirect to main wall after logout for consistent UX
+      router.push('/')
     }
   }
 

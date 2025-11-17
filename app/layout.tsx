@@ -8,7 +8,7 @@ import { AuthProvider } from '../lib/AuthContext'; // Importamos el proveedor
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'Mi Pinterest',
+  title: "A'AL",
   description: 'Descubre ideas increíbles',
 };
 

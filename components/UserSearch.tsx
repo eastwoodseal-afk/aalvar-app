@@ -189,7 +189,7 @@ export default function UserSearch({
             placeholder={`Buscar ${getRoleDisplayName(searchRole).toLowerCase()}s por nombre de usuario...`}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full px-4 py-2 pl-10 bg-gray-700 border border-gray-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="w-full px-4 py-2 pl-10 bg-gray-700 border border-gray-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#D4AF37] focus:border-transparent"
           />
           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
             <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -230,7 +230,7 @@ export default function UserSearch({
                     type="checkbox"
                     checked={selectedUsers.has(user.id)}
                     onChange={() => handleUserToggle(user.id)}
-                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                    className="h-4 w-4 text-[#D4AF37] focus:ring-[#D4AF37] border-gray-300 rounded"
                   />
                   <div>
                     <div className="text-white font-medium">@{user.username}</div>
@@ -265,7 +265,7 @@ export default function UserSearch({
             <button
               onClick={handlePromoteSelected}
               disabled={promoting}
-              className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 disabled:opacity-50 transition-colors"
+              className="bg-[#D4AF37] text-black px-4 py-2 font-semibold rounded-md hover:brightness-110 disabled:opacity-50 transition-colors"
             >
               {promoting ? 'Promoviendo...' : `Promover a ${getRoleDisplayName(targetRole)}`}
             </button>

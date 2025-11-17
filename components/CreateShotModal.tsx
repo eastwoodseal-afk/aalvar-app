@@ -428,7 +428,7 @@ export default function CreateShotModal({ onClose, embedded = false }: { onClose
               <p className="text-gray-400 text-sm mb-2">
                 Selecciona múltiples imágenes o arrastra carpetas completas aquí. Los nombres de archivo se usarán como títulos.
               </p>
-              <p className="text-blue-400 text-xs mb-4">
+              <p className="text-[#D4AF37] text-xs mb-4">
                 🔧 Las imágenes mayores a 1600x900px se redimensionarán automáticamente para optimizar el rendimiento
               </p>
             </div>
@@ -440,7 +440,7 @@ export default function CreateShotModal({ onClose, embedded = false }: { onClose
               onDrop={handleDrop}
               className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
                 isDragOver 
-                  ? 'border-blue-400 bg-blue-900/20' 
+                  ? 'border-[#D4AF37] bg-[#D4AF37]/10' 
                   : 'border-gray-600 bg-gray-800/50'
               }`}
             >
@@ -456,7 +456,7 @@ export default function CreateShotModal({ onClose, embedded = false }: { onClose
                   <p className="text-gray-500 text-xs mt-1">
                     ✅ Soporta carpetas completas con subcarpetas
                   </p>
-                  <p className="text-blue-400 text-xs">
+                  <p className="text-[#D4AF37] text-xs">
                     🎯 Optimización automática de imágenes grandes
                   </p>
                 </div>
@@ -472,7 +472,7 @@ export default function CreateShotModal({ onClose, embedded = false }: { onClose
                   type="button"
                   onClick={() => bulkInputRef.current?.click()}
                   disabled={loading}
-                  className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                  className="bg-[#D4AF37] text-black px-4 py-2 font-semibold rounded-md hover:brightness-110 disabled:opacity-50 transition-colors"
                 >
                   {loading ? 'Procesando...' : 'Seleccionar Imágenes'}
                 </button>
@@ -512,7 +512,7 @@ export default function CreateShotModal({ onClose, embedded = false }: { onClose
                 </div>
                 <div className="w-full bg-gray-700 rounded-full h-2 mb-2">
                   <div 
-                    className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                    className="bg-[#D4AF37] h-2 rounded-full transition-all duration-300"
                     style={{ width: `${(bulkProgress.completed / bulkProgress.total) * 100}%` }}
                   ></div>
                 </div>
@@ -546,10 +546,10 @@ export default function CreateShotModal({ onClose, embedded = false }: { onClose
                 onDragOver={handleDragOver}
                 onDragLeave={handleDragLeave}
                 onDrop={handleDrop}
-                className={`transition-colors ${isDragOver ? 'bg-blue-900/10' : ''}`}
+                className={`transition-colors ${isDragOver ? 'bg-[#D4AF37]/10' : ''}`}
               >
                 <label htmlFor="imageUrl" className="block text-sm font-medium text-gray-300">URL de la Imagen</label>
-                <p className="text-blue-400 text-xs mb-2">
+                <p className="text-[#D4AF37] text-xs mb-2">
                   💡 También puedes arrastrar imágenes aquí
                 </p>
                 <input
@@ -559,8 +559,8 @@ export default function CreateShotModal({ onClose, embedded = false }: { onClose
                   onChange={(e) => setImageUrl(e.target.value)}
                   required
                   placeholder="https://ejemplo.com/imagen.jpg"
-                  className={`mt-1 block w-full px-3 py-2 bg-gray-800 border rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-white ${
-                    isDragOver ? 'border-blue-400' : 'border-gray-600'
+                  className={`mt-1 block w-full px-3 py-2 bg-gray-800 border rounded-md shadow-sm focus:outline-none focus:ring-[#D4AF37] focus:border-[#D4AF37] text-white ${
+                    isDragOver ? 'border-[#D4AF37]' : 'border-gray-600'
                   }`}
                 />
               </div>
@@ -571,7 +571,7 @@ export default function CreateShotModal({ onClose, embedded = false }: { onClose
                 <label className="block text-sm font-medium text-gray-300">
                   {uploadMethod === 'camera' ? 'Tomar Foto' : 'Subir Archivo'}
                 </label>
-                <p className="text-blue-400 text-xs mb-2">
+                <p className="text-[#D4AF37] text-xs mb-2">
                   🔧 Las imágenes mayores a 1600x900px se redimensionarán automáticamente
                 </p>
                 <p className="text-green-400 text-xs mb-2">
@@ -590,7 +590,7 @@ export default function CreateShotModal({ onClose, embedded = false }: { onClose
                   onDrop={handleDrop}
                   className={`mt-1 block w-full px-3 py-2 border-2 border-dashed rounded-md cursor-pointer bg-gray-800 transition-colors ${
                     isDragOver 
-                      ? 'border-blue-400 bg-blue-900/20' 
+                      ? 'border-[#D4AF37] bg-[#D4AF37]/10' 
                       : 'border-gray-600 hover:border-gray-500'
                   }`}
                   onClick={() => fileInputRef.current?.click()}
@@ -613,7 +613,7 @@ export default function CreateShotModal({ onClose, embedded = false }: { onClose
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 required
-                className="mt-1 block w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-white"
+                className="mt-1 block w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-[#D4AF37] focus:border-[#D4AF37] text-white"
               />
             </div>
             <div>
@@ -623,7 +623,7 @@ export default function CreateShotModal({ onClose, embedded = false }: { onClose
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 rows={3}
-                className="mt-1 block w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-white"
+                className="mt-1 block w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-[#D4AF37] focus:border-[#D4AF37] text-white"
               />
             </div>
             

@@ -1,12 +1,9 @@
 "use client"
 
-import type React from "react"
-
 import { useState, useEffect } from "react"
 import { useAuth } from "../lib/AuthContext"
 import { supabase } from "../lib/supabase"
 import ShotModal from "./ShotModal"
-import SaveToBoardModal from "./SaveToBoardModal"
 
 export default function Shot({
   isLoggedIn,
@@ -27,47 +24,32 @@ export default function Shot({
 }) {
   const { user } = useAuth()
   const [isSaved, setIsSaved] = useState(isInitiallySaved)
-  const [isModalOpen, setIsModalOpen] = useState(false)
-  const [isSaveModalOpen, setIsSaveModalOpen] = useState(false)
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false)
 
   useEffect(() => {
     setIsSaved(isInitiallySaved)
   }, [isInitiallySaved])
 
-  const handleSaveClick = async (e: React.MouseEvent) => {
+  const handleSaveClick = async (e: any) => {
     e.stopPropagation()
     if (!user) return
+    
+    // Si ya está guardado, no hacer nada (evitar que se elimine accidentalmente)
+    if (isSaved) return
 
-    if (isSaved) {
-      const confirmUnsave = confirm("¿Quieres quitar este shot de tus guardados?")
-      if (!confirmUnsave) return
-
-      try {
-        await supabase.from("saved_shots").delete().eq("user_id", user.id).eq("shot_id", shotData.id)
-
-        const { data: boardShots } = await supabase
-          .from("board_shots")
-          .select("id, board_id")
-          .eq("shot_id", shotData.id)
-
-        if (boardShots) {
-          for (const bs of boardShots) {
-            const { data: board } = await supabase.from("boards").select("user_id").eq("id", bs.board_id).single()
-
-            if (board && board.user_id === user.id) {
-              await supabase.from("board_shots").delete().eq("id", bs.id)
-            }
-          }
-        }
-
-        setIsSaved(false)
-        // window.location.reload() removed to rely on local state
-      } catch (error) {
-        console.error("Error unsaving shot:", error)
-        alert("Error al quitar el shot de guardados")
+    // Guardar directamente en saved_shots (sin modal, sin tablero)
+    try {
+      const { error } = await supabase.from("saved_shots").insert({ user_id: user.id, shot_id: shotData.id })
+      
+      if (error && error.code !== "23505") {
+        console.error("Error saving shot:", error)
+        return
       }
-    } else {
-      setIsSaveModalOpen(true)
+      
+      // Cambiar estado a guardado (sin alert, solo cambio visual)
+      setIsSaved(true)
+    } catch (error) {
+      console.error("Error saving shot:", error)
     }
   }
 
@@ -76,13 +58,7 @@ export default function Shot({
       onOpenShot(shotData)
       return
     }
-
-    setIsModalOpen(true)
-  }
-  const handleCloseModal = () => setIsModalOpen(false)
-  const handleCloseSaveModal = () => setIsSaveModalOpen(false)
-  const handleSaved = () => {
-    setIsSaved(true)
+    setIsDetailModalOpen(true)
   }
 
   return (
@@ -101,17 +77,17 @@ export default function Shot({
           {isLoggedIn && !isAdminMode && (
             <button
               onClick={handleSaveClick}
-              className={`absolute top-2 right-2 p-2 rounded-full transition-all duration-300 hover:scale-110 ${
-                isSaved ? "bg-gray-600 text-white" : "bg-red-600 text-white"
+              disabled={isSaved}
+              className={`absolute top-2 right-2 p-2 rounded-full transition-all duration-300 ${
+                isSaved
+                  ? "bg-[#D4AF37] text-black cursor-default"
+                  : "bg-[rgb(224,0,122)]/25 text-white ring-1 ring-transparent hover:bg-[rgb(224,0,122)] hover:ring-2 hover:ring-[#D4AF37] hover:brightness-110 hover:scale-110 cursor-pointer"
               }`}
+              title={isSaved ? "Ya guardado" : "Guardar"}
             >
               {isSaved ? (
                 <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                  <path
-                    fillRule="evenodd"
-                    d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                    clipRule="evenodd"
-                  />
+                  <path d="M5 4a2 2 0 012-2h6a2 2 0 012 2v14l-5-2.5L5 18V4z" />
                 </svg>
               ) : (
                 <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
@@ -146,8 +122,7 @@ export default function Shot({
         </div>
       </div>
 
-  {isModalOpen && <ShotModal shotData={shotData} onClose={handleCloseModal} showDelete={isAdminMode} />}
-  {isSaveModalOpen && <SaveToBoardModal shotId={shotData.id} onClose={handleCloseSaveModal} onSaved={handleSaved} />}
+  {isDetailModalOpen && <ShotModal shotData={shotData} onClose={() => setIsDetailModalOpen(false)} />}
     </>
   )
 }

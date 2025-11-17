@@ -208,7 +208,7 @@ export default function RoleManager({ currentRole }: RoleManagerProps) {
                       type="checkbox"
                       checked={selectedAdmins.has(admin.id)}
                       onChange={() => handleAdminToggle(admin.id)}
-                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                      className="h-4 w-4 text-[#D4AF37] focus:ring-[#D4AF37] border-gray-300 rounded"
                     />
                     <div>
                       <div className="text-white font-medium">@{admin.username}</div>

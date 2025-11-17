@@ -8,8 +8,8 @@ import { useAuth } from '../lib/AuthContext';
 
 interface Notification {
   id: string;
-  user_id: string;
-  title: string;
+  user_id?: string;        // Opcional, no se muestra en UI
+  title?: string;          // Opcional, no se muestra en UI
   message: string;
   type: 'role_promotion' | 'shot_approved' | 'general';
   read: boolean;
@@ -54,9 +54,10 @@ export default function NotificationSystem() {
   const fetchNotifications = async () => {
     if (!user) return;
 
+    // Optimizado: solo campos necesarios para mostrar notificaciones
     const { data, error } = await supabase
       .from('notifications')
-      .select('*')
+      .select('id, type, message, read, created_at')
       .eq('user_id', user.id)
       .order('created_at', { ascending: false })
       .limit(10);
@@ -155,7 +156,7 @@ export default function NotificationSystem() {
               {unreadCount > 0 && (
                 <button
                   onClick={markAllAsRead}
-                  className="text-blue-400 text-sm hover:text-blue-300"
+                  className="text-[#D4AF37] text-sm hover:brightness-110"
                 >
                   Marcar todas como leídas
                 </button>
@@ -185,7 +186,7 @@ export default function NotificationSystem() {
                           {notification.title}
                         </h4>
                         {!notification.read && (
-                          <div className="w-2 h-2 bg-blue-500 rounded-full ml-2 mt-1"></div>
+                          <div className="w-2 h-2 bg-[#D4AF37] rounded-full ml-2 mt-1"></div>
                         )}
                       </div>
                       <p className="text-sm text-gray-400 mt-1">{notification.message}</p>
@@ -203,7 +204,7 @@ export default function NotificationSystem() {
             <div className="p-4 border-t border-gray-700">
               <button
                 onClick={() => setShowNotifications(false)}
-                className="w-full text-center text-blue-400 text-sm hover:text-blue-300"
+                className="w-full text-center text-[#D4AF37] text-sm hover:brightness-110"
               >
                 Cerrar
               </button>

@@ -145,7 +145,7 @@ export default function AuthModal({ onClose, embedded = false }: { onClose: () =
                   className={`mt-1 block w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-1 ${
                     usernameError
                       ? 'border-red-400 focus:border-red-500 focus:ring-red-500'
-                      : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
+                      : 'border-gray-300 focus:ring-[#D4AF37] focus:border-[#D4AF37]'
                   }`}
                 />
                 {usernameError && (
@@ -168,7 +168,7 @@ export default function AuthModal({ onClose, embedded = false }: { onClose: () =
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-[#D4AF37] focus:border-[#D4AF37]"
             />
           </div>
           <div>
@@ -179,7 +179,7 @@ export default function AuthModal({ onClose, embedded = false }: { onClose: () =
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-[#D4AF37] focus:border-[#D4AF37]"
             />
           </div>
           
@@ -197,7 +197,7 @@ export default function AuthModal({ onClose, embedded = false }: { onClose: () =
         <div className="mt-4 text-center">
           <button
             onClick={() => setIsSignUp(!isSignUp)}
-            className="text-blue-600 hover:underline text-sm"
+            className="text-[#D4AF37] hover:underline text-sm"
           >
             {isSignUp ? '¿Ya tienes cuenta? Inicia sesión' : '¿No tienes cuenta? Regístrate'}
           </button>
