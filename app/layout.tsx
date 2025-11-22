@@ -4,6 +4,8 @@ import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import './globals.css';
 import { AuthProvider } from '../lib/AuthContext'; // Importamos el proveedor
+import { RightPanelProvider } from '../lib/RightPanelContext';
+import GlobalModals from '../components/GlobalModals';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -22,7 +24,10 @@ export default function RootLayout({
       <body className={inter.className}>
         {/* Envuelve toda la aplicación con nuestro proveedor de autenticación */}
         <AuthProvider>
-          {children}
+          <RightPanelProvider>
+            {children}
+            <GlobalModals />
+          </RightPanelProvider>
         </AuthProvider>
       </body>
     </html>

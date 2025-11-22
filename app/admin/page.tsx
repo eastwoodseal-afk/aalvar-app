@@ -6,12 +6,14 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../../lib/AuthContext';
 import { supabase } from '../../lib/supabase';
 import { hasPermission, UserRole } from '../../lib/roleUtils';
+import { getEnableCategoryFilter, setEnableCategoryFilter } from '../../lib/appSettings';
 import UserSearch from '../../components/UserSearch';
 import RoleManager from '../../components/RoleManager';
 import { useRouter } from 'next/navigation';
 import Header from '../../components/Header';
 import MasonryWall from '../../components/MasonryWall';
 import AdminShotModal from '../../components/AdminShotModal';
+import { getCategories, createCategory, updateCategory, deleteCategory, Category } from '../../lib/categoryUtils';
 
 interface Shot {
   id: string;
@@ -31,10 +33,14 @@ export default function AdminPage() {
   const router = useRouter();
   const [shots, setShots] = useState<Shot[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'shots' | 'promote-members' | 'promote-admins' | 'manage-admins'>('shots');
+  const [activeTab, setActiveTab] = useState<'shots' | 'promote-members' | 'promote-admins' | 'manage-admins' | 'configuracion'>('shots');
+  const [categoryFilterEnabled, setCategoryFilterEnabled] = useState<boolean>(true);
+  const [configLoading, setConfigLoading] = useState<boolean>(false);
+  const [updatingFlag, setUpdatingFlag] = useState<boolean>(false);
   const [selectedShot, setSelectedShot] = useState<Shot | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [showSuccessApproval, setShowSuccessApproval] = useState(false);
+  const [approvedShotIds, setApprovedShotIds] = useState<Set<string>>(new Set());
+  const [showCategoryManager, setShowCategoryManager] = useState(false);
 
   useEffect(() => {
     if (!authLoading) {
@@ -49,8 +55,27 @@ export default function AdminPage() {
       }
       
       fetchPendingShots();
+      // Cargar estado de configuración global
+      (async () => {
+        setConfigLoading(true);
+        const enabled = await getEnableCategoryFilter();
+        setCategoryFilterEnabled(enabled);
+        setConfigLoading(false);
+      })();
     }
   }, [user, authLoading, router]);
+  const handleToggleCategoryFilter = async () => {
+    if (updatingFlag) return;
+    setUpdatingFlag(true);
+    const next = !categoryFilterEnabled;
+    const ok = await setEnableCategoryFilter(next);
+    if (ok) {
+      setCategoryFilterEnabled(next);
+    } else {
+      alert('No se pudo actualizar la configuración.');
+    }
+    setUpdatingFlag(false);
+  };
 
   const fetchPendingShots = async () => {
     try {
@@ -141,8 +166,8 @@ export default function AdminPage() {
         return;
       }
 
-      // Remove from pending list
-      setShots(prev => prev.filter(shot => shot.id !== shotId));
+      // Mark as approved visually (keep in list with golden checkmark)
+      setApprovedShotIds(prev => new Set(prev).add(shotId));
 
       // Send notification to shot creator
       const shot = shots.find(s => s.id === shotId);
@@ -158,12 +183,6 @@ export default function AdminPage() {
             created_at: new Date().toISOString(),
           });
       }
-
-      // Show success animation
-      setShowSuccessApproval(true);
-      setTimeout(() => {
-        setShowSuccessApproval(false);
-      }, 1500);
     } catch (error) {
       console.error('Error approving shot:', error);
       alert('Error al aprobar el shot');
@@ -215,12 +234,10 @@ export default function AdminPage() {
       const { data: { user: currentUser }, error: authError } = await supabase.auth.getUser();
       if (authError) {
         console.error('handlePromoteUser: error getting current user from auth', authError);
-        alert('Error obteniendo tu usuario actual');
         return { success: false };
       }
       if (!currentUser) {
         console.error('handlePromoteUser: no current user in auth');
-        alert('No se pudo obtener el usuario actual');
         return { success: false };
       }
       console.log('handlePromoteUser: current user from auth', { id: currentUser.id, email: currentUser.email });
@@ -235,12 +252,10 @@ export default function AdminPage() {
 
       if (fetchError) {
         console.error('handlePromoteUser: error fetching target user', fetchError);
-        alert(`Error: No se pudo obtener el perfil del usuario. ${(fetchError as any)?.message || ''}`);
         return { success: false };
       }
       if (!targetUser) {
         console.error('handlePromoteUser: target user not found');
-        alert('Error: Usuario no encontrado');
         return { success: false };
       }
       console.log('handlePromoteUser: target user fetched', { username: targetUser.username, role: targetUser.role });
@@ -260,7 +275,6 @@ export default function AdminPage() {
 
       if (updateError) {
         console.error('handlePromoteUser: error updating user role in profiles', { error: updateError, code: (updateError as any)?.code, message: (updateError as any)?.message });
-        alert(`Error al actualizar el rol: ${(updateError as any)?.message || 'Error desconocido'}`);
         return { success: false };
       }
       console.log('handlePromoteUser: role update succeeded', { updateData_result });
@@ -303,12 +317,10 @@ export default function AdminPage() {
         console.log('handlePromoteUser: notification insertion succeeded');
       }
 
-      console.log('handlePromoteUser: promotion complete, showing success alert');
-      alert(`Usuario promovido a ${newRole === 'member' ? 'Miembro' : 'Administrador'} correctamente`);
+      console.log('handlePromoteUser: promotion complete');
       return { success: true, newRole };
     } catch (error) {
       console.error('handlePromoteUser: unexpected error', error);
-      alert(`Error inesperado: ${(error as any)?.message || 'Desconocido'}`);
       return { success: false };
     }
   };
@@ -342,19 +354,6 @@ export default function AdminPage() {
   return (
     <div className="min-h-screen bg-black text-white">
       <Header />
-      
-      {/* Success checkmark for approval */}
-      {showSuccessApproval && (
-        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
-          <div className="bg-gray-900 rounded-lg p-8 text-center">
-            <div className="animate-bounce">
-              <div className="text-6xl text-green-400 mb-4">✓</div>
-            </div>
-            <p className="text-white text-lg font-semibold">¡Shot aprobado con éxito!</p>
-            <p className="text-gray-400 text-sm mt-2">Ahora es visible en el muro principal</p>
-          </div>
-        </div>
-      )}
       
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <section className="max-w-7xl mx-auto text-center py-8 px-8 mb-8">
@@ -414,6 +413,16 @@ export default function AdminPage() {
                 >
                   Gestionar Admins
                 </button>
+                <button
+                  onClick={() => setActiveTab('configuracion')}
+                  className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                    activeTab === 'configuracion'
+                      ? 'border-[#D4AF37] text-[#D4AF37]'
+                      : 'border-transparent text-gray-400 hover:text-gray-300'
+                  }`}
+                >
+                  Configuración
+                </button>
               </>
             )}
           </nav>
@@ -430,6 +439,7 @@ export default function AdminPage() {
               isLoggedIn={!!user}
               savedShotIds={new Set<number>()}
               isAdminMode={true}
+              approvedShotIds={approvedShotIds}
               onApprove={(id: number) => handleApproveShot(String(id))}
               onReject={(id: number) => handleRejectShot(String(id))}
               onOpenShot={(shot) => openAdminModal(shot)}
@@ -469,6 +479,222 @@ export default function AdminPage() {
         {activeTab === 'manage-admins' && user.role === 'superadmin' && (
           <RoleManager currentRole={user.role} />
         )}
+
+        {activeTab === 'configuracion' && user.role === 'superadmin' && (
+          <div className="space-y-6">
+            <h2 className="text-xl font-semibold mb-2">Configuración Global</h2>
+            <p className="text-sm text-gray-400 mb-6">Activa o desactiva funciones del muro principal.</p>
+            <div className="bg-gray-900 border border-gray-800 rounded-lg p-6 flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-semibold">Filtro por Categorías</h3>
+                <p className="text-xs text-gray-400 mt-1">Controla si el muro principal muestra el filtro visual de categorías y permite filtrar por ellas.</p>
+                <p className="text-xs mt-2">
+                  Estado actual: <span className={categoryFilterEnabled ? 'text-green-400' : 'text-red-400'}>{categoryFilterEnabled ? 'ACTIVADO' : 'DESACTIVADO'}</span>
+                </p>
+              </div>
+              <button
+                onClick={handleToggleCategoryFilter}
+                disabled={configLoading || updatingFlag}
+                className={`relative inline-flex items-center h-10 w-20 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-[#D4AF37] ${
+                  categoryFilterEnabled ? 'bg-[#D4AF37]' : 'bg-gray-700'
+                } ${updatingFlag ? 'opacity-60 cursor-wait' : ''}`}
+                aria-pressed={categoryFilterEnabled}
+                aria-label="Toggle filtro de categorías"
+              >
+                <span
+                  className={`inline-block h-8 w-8 rounded-full bg-black shadow transform transition-transform duration-300 ${
+                    categoryFilterEnabled ? 'translate-x-10' : 'translate-x-2'
+                  }`}
+                />
+              </button>
+            </div>
+            <div className="text-xs text-gray-500">
+              Nota: Al desactivar el filtro, los badges de categoría siguen visibles en los shots (solo se oculta la herramienta de filtrado). Puedes ampliar esta lógica más tarde.
+            </div>
+            {/* Botón para abrir la gestión de categorías */}
+            <div className="mt-8 flex justify-end">
+              <button
+                onClick={() => setShowCategoryManager(true)}
+                className="bg-[#D4AF37] text-black px-5 py-2 rounded-lg font-semibold shadow hover:bg-[#B08A2E] transition-colors"
+              >
+                Gestionar categorías
+              </button>
+            </div>
+            {/* Modal/Panel de gestión de categorías */}
+            {showCategoryManager && (
+              <CategoryManager onClose={() => setShowCategoryManager(false)} />
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// Componente CategoryManager
+function slugify(str: string) {
+  return str
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // quita acentos
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-') // reemplaza no alfanumérico por guion
+    .replace(/^-+|-+$/g, ''); // quita guiones al inicio/fin
+}
+
+function CategoryManager({ onClose }: { onClose: () => void }) {
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [newName, setNewName] = useState('');
+  const [newSlug, setNewSlug] = useState('');
+  const [newDesc, setNewDesc] = useState('');
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editSlug, setEditSlug] = useState('');
+  const [editDesc, setEditDesc] = useState('');
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    fetchCategories();
+  }, []);
+
+  // Autocompletar slug al escribir nombre
+  useEffect(() => {
+    setNewSlug(slugify(newName));
+  }, [newName]);
+
+  async function fetchCategories() {
+    setLoading(true);
+    const cats = await getCategories();
+    setCategories(cats);
+    setLoading(false);
+  }
+
+  async function handleCreate() {
+    if (!newName.trim() || !newSlug.trim()) {
+      setError('Nombre y slug requeridos');
+      return;
+    }
+    const cat = await createCategory({ name: newName.trim(), slug: newSlug.trim(), description: newDesc });
+    if (cat) {
+      setNewName(''); setNewSlug(''); setNewDesc(''); setError('');
+      fetchCategories();
+    } else {
+      setError('Error al crear categoría');
+    }
+  }
+
+  async function handleEdit(id: number) {
+    setEditingId(id);
+    const cat = categories.find(c => c.id === id);
+    if (cat) {
+      setEditName(cat.name || '');
+      setEditSlug(cat.slug || '');
+      setEditDesc(cat.description || '');
+    }
+  }
+
+  // Autocompletar slug al editar nombre
+  useEffect(() => {
+    if (editingId !== null) {
+      setEditSlug(slugify(editName));
+    }
+  }, [editName, editingId]);
+
+  async function handleUpdate() {
+    if (!editingId || !editName.trim() || !editSlug.trim()) {
+      setError('Nombre y slug requeridos');
+      return;
+    }
+    const ok = await updateCategory(editingId, { name: editName.trim(), slug: editSlug.trim(), description: editDesc });
+    if (ok) {
+      setEditingId(null); setEditName(''); setEditSlug(''); setEditDesc(''); setError('');
+      fetchCategories();
+    } else {
+      setError('Error al actualizar categoría');
+    }
+  }
+
+  async function handleDelete(id: number) {
+    if (!window.confirm('¿Eliminar esta categoría?')) return;
+    const ok = await deleteCategory(id);
+    if (ok) fetchCategories();
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center">
+      <div className="bg-gray-950 rounded-lg p-8 w-full max-w-xl shadow-lg relative">
+        <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-white text-xl">✕</button>
+        <h2 className="text-lg font-bold mb-4 text-white">Gestión de Categorías</h2>
+        {error && <div className="mb-2 text-red-400 text-sm">{error}</div>}
+        <div className="mb-6">
+          <input
+            type="text"
+            value={newName}
+            onChange={e => setNewName(e.target.value)}
+            placeholder="Nombre"
+            className="px-3 py-2 rounded bg-gray-900 text-white mr-2 mb-2"
+          />
+          <input
+            type="text"
+            value={newSlug}
+            onChange={e => setNewSlug(e.target.value)}
+            placeholder="Slug"
+            className="px-3 py-2 rounded bg-gray-900 text-white mr-2 mb-2"
+          />
+          <input
+            type="text"
+            value={newDesc}
+            onChange={e => setNewDesc(e.target.value)}
+            placeholder="Descripción (opcional)"
+            className="px-3 py-2 rounded bg-gray-900 text-white mb-2"
+          />
+          <button onClick={handleCreate} className="bg-[#D4AF37] text-black px-4 py-2 rounded font-semibold ml-2">Crear</button>
+        </div>
+        <div>
+          {loading ? (
+            <div className="text-gray-400">Cargando...</div>
+          ) : categories.length === 0 ? (
+            <div className="text-gray-400">No hay categorías aún.</div>
+          ) : (
+            <table className="w-full text-sm text-left">
+              <thead>
+                <tr className="text-gray-400">
+                  <th>Nombre</th>
+                  <th>Slug</th>
+                  <th>Descripción</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {categories.map(cat => (
+                  <tr key={cat.id} className="border-b border-gray-800">
+                    <td>{editingId === cat.id ? (
+                      <input value={editName} onChange={e => setEditName(e.target.value)} className="px-2 py-1 rounded bg-gray-900 text-white" />
+                    ) : cat.name}</td>
+                    <td>{editingId === cat.id ? (
+                      <input value={editSlug} onChange={e => setEditSlug(e.target.value)} className="px-2 py-1 rounded bg-gray-900 text-white" />
+                    ) : cat.slug}</td>
+                    <td>{editingId === cat.id ? (
+                      <input value={editDesc} onChange={e => setEditDesc(e.target.value)} className="px-2 py-1 rounded bg-gray-900 text-white" />
+                    ) : cat.description}</td>
+                    <td className="flex gap-2">
+                      {editingId === cat.id ? (
+                        <>
+                          <button onClick={handleUpdate} className="bg-green-600 text-white px-2 py-1 rounded">Guardar</button>
+                          <button onClick={() => setEditingId(null)} className="bg-gray-700 text-white px-2 py-1 rounded">Cancelar</button>
+                        </>
+                      ) : (
+                        <>
+                          <button onClick={() => handleEdit(cat.id)} className="bg-blue-600 text-white px-2 py-1 rounded">Editar</button>
+                          <button onClick={() => handleDelete(cat.id)} className="bg-red-600 text-white px-2 py-1 rounded">Eliminar</button>
+                        </>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
       </div>
     </div>
   );

@@ -13,6 +13,7 @@ interface RoleManagerProps {
 export default function RoleManager({ currentRole }: RoleManagerProps) {
   const [admins, setAdmins] = useState<UserWithRole[]>([]);
   const [selectedAdmins, setSelectedAdmins] = useState<Set<string>>(new Set());
+  const [demotedAdmins, setDemotedAdmins] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
   const [recentPromotions, setRecentPromotions] = useState<RolePromotion[]>([]);
@@ -46,8 +47,8 @@ export default function RoleManager({ currentRole }: RoleManagerProps) {
       }));
 
       setAdmins(adminsWithRole);
-      // Initialize selected admins (all current admins are selected by default)
-      setSelectedAdmins(new Set(adminsWithRole.map(admin => admin.id)));
+      // Initialize selected admins (empty by default - user must manually select to demote)
+      setSelectedAdmins(new Set());
     } catch (error) {
       console.error('Error in fetchAdmins:', error);
     } finally {
@@ -103,8 +104,9 @@ export default function RoleManager({ currentRole }: RoleManagerProps) {
       const { data: { user: currentUser } } = await supabase.auth.getUser();
       if (!currentUser) return;
 
-      // Determine which admins to demote
-      const toDemote = admins.filter(admin => !selectedAdmins.has(admin.id));
+      // Determine which admins to demote (now based on selection, not deselection)
+      const toDemote = admins.filter(admin => selectedAdmins.has(admin.id));
+      const newDemoted = new Set(demotedAdmins);
       
       for (const admin of toDemote) {
         // Update user role to member
@@ -121,6 +123,9 @@ export default function RoleManager({ currentRole }: RoleManagerProps) {
           console.error('Error demoting admin:', updateError);
           continue;
         }
+
+        // Mark as demoted visually
+        newDemoted.add(admin.id);
 
         // Log the demotion
         await supabase
@@ -147,14 +152,14 @@ export default function RoleManager({ currentRole }: RoleManagerProps) {
           });
       }
 
+      // Update demoted state
+      setDemotedAdmins(newDemoted);
+
       // Refresh the admin list
       await fetchAdmins();
       await fetchRecentPromotions();
-
-      alert(`Se actualizaron los roles. ${toDemote.length} administrador(es) fueron degradados a miembros.`);
     } catch (error) {
       console.error('Error updating admin roles:', error);
-      alert('Error al actualizar los roles de administrador.');
     } finally {
       setUpdating(false);
     }
@@ -183,7 +188,7 @@ export default function RoleManager({ currentRole }: RoleManagerProps) {
             Gestión de Administradores
           </h3>
           <p className="text-gray-400 text-sm">
-            Selecciona los usuarios que deben mantener el rol de administrador. Los no seleccionados serán degradados a miembros.
+            Selecciona los administradores que deseas degradar a miembros. Luego confirma la acción.
           </p>
         </div>
 
@@ -198,43 +203,59 @@ export default function RoleManager({ currentRole }: RoleManagerProps) {
         ) : (
           <>
             <div className="space-y-2 mb-4">
-              {admins.map((admin) => (
-                <div
-                  key={admin.id}
-                  className="flex items-center justify-between p-3 bg-gray-700 rounded-md"
-                >
-                  <div className="flex items-center space-x-3">
-                    <input
-                      type="checkbox"
-                      checked={selectedAdmins.has(admin.id)}
-                      onChange={() => handleAdminToggle(admin.id)}
-                      className="h-4 w-4 text-[#D4AF37] focus:ring-[#D4AF37] border-gray-300 rounded"
-                    />
-                    <div>
-                      <div className="text-white font-medium">@{admin.username}</div>
-                      <div className="text-gray-400 text-sm">
-                        Promovido: {admin.promoted_at ? formatDate(admin.promoted_at) : 'N/A'}
+              {admins.map((admin) => {
+                const isDemoted = demotedAdmins.has(admin.id);
+                const isSelected = selectedAdmins.has(admin.id);
+                return (
+                  <div
+                    key={admin.id}
+                    onClick={() => !isDemoted && handleAdminToggle(admin.id)}
+                    className={`flex items-center justify-between p-3 rounded-md transition-all duration-300 ${
+                      isDemoted
+                        ? 'bg-red-900/20 border-2 border-red-500'
+                        : isSelected
+                        ? 'bg-orange-600/20 border-2 border-orange-500 cursor-pointer'
+                        : 'bg-gray-700 hover:bg-gray-600 cursor-pointer'
+                    }`}
+                  >
+                    <div className="flex items-center space-x-3">
+                      <input
+                        type="checkbox"
+                        checked={selectedAdmins.has(admin.id)}
+                        onChange={() => {}}
+                        disabled={isDemoted}
+                        className="h-4 w-4 text-[#D4AF37] focus:ring-[#D4AF37] border-gray-300 rounded disabled:opacity-50 pointer-events-none"
+                      />
+                      <div>
+                        <div className={`font-medium ${
+                          isDemoted ? 'text-red-400' : isSelected ? 'text-orange-400' : 'text-white'
+                        }`}>@{admin.username}</div>
+                        <div className="text-gray-400 text-sm">
+                          Promovido: {admin.promoted_at ? formatDate(admin.promoted_at) : 'N/A'}
+                        </div>
                       </div>
                     </div>
+                    <div className={`text-sm font-medium ${
+                      isDemoted ? 'text-red-400' : isSelected ? 'text-orange-400' : 'text-yellow-400'
+                    }`}>
+                      {isDemoted ? '⬇️ Degradado' : isSelected ? '⚠️ A degradar' : '👑 Administrador'}
+                    </div>
                   </div>
-                  <div className="text-yellow-400 text-sm font-medium">
-                    👑 Administrador
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
             <div className="border-t border-gray-700 pt-4">
               <div className="flex items-center justify-between">
                 <div className="text-sm text-gray-300">
-                  {selectedAdmins.size} de {admins.length} administrador(es) seleccionado(s)
+                  {selectedAdmins.size} administrador(es) seleccionado(s) para degradar
                 </div>
                 <button
                   onClick={handleUpdateAdminRoles}
-                  disabled={updating}
-                  className="bg-yellow-600 text-white px-4 py-2 rounded-md hover:bg-yellow-700 disabled:opacity-50 transition-colors"
+                  disabled={updating || selectedAdmins.size === 0}
+                  className="bg-orange-600 text-white px-4 py-2 font-semibold rounded-md hover:bg-orange-700 disabled:opacity-50 transition-colors"
                 >
-                  {updating ? 'Actualizando...' : 'Actualizar Roles'}
+                  {updating ? 'Degradando...' : 'Confirmar Degradación'}
                 </button>
               </div>
             </div>

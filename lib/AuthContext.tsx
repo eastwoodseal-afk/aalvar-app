@@ -148,9 +148,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const userWithRole = await fetchUserWithRole(session.user);
           setUser(userWithRole);
         } else {
-          // Session lost or signed out: clear user and navigate home to collapse any two-pane context
+          // Session lost or signed out: clear user.
           setUser(null);
-          try { router.push('/'); } catch {}
+          // Avoid redundant redirects on first load and when already at '/'
+          const path = typeof window !== 'undefined' ? window.location.pathname : '';
+          const isInitial = event === 'INITIAL_SESSION';
+          if (!isInitial && path !== '/') {
+            try { router.replace('/'); } catch {}
+          }
         }
         setLoading(false);
       }

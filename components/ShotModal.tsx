@@ -8,11 +8,12 @@ interface UserProfile {
   username?: string
 }
 
-export default function ShotModal({ shotData, onClose }: { shotData: any; onClose: () => void }) {
+export default function ShotModal({ shotData, onClose, embedded = false }: { shotData: any; onClose: () => void; embedded?: boolean }) {
   const { user } = useAuth()
   const [isDeleting, setIsDeleting] = useState(false)
   const [creator, setCreator] = useState<UserProfile | null>(null)
   const [loadingCreator, setLoadingCreator] = useState(true)
+  const [categoryName, setCategoryName] = useState<string | null>(null)
 
   const isOwner = user && shotData.user_id === user.id
   const isAdmin = user && ((user as any).role === "admin" || (user as any).role === "superadmin")
@@ -42,8 +43,26 @@ export default function ShotModal({ shotData, onClose }: { shotData: any; onClos
       }
     }
 
+    const fetchCategory = async () => {
+      if (!shotData?.category_id) return
+
+      try {
+        const { data, error } = await supabase
+          .from("categories")
+          .select("name")
+          .eq("id", shotData.category_id)
+          .single()
+
+        if (error) throw error
+        setCategoryName(data?.name || null)
+      } catch (error) {
+        console.error("Error fetching category:", error)
+      }
+    }
+
     fetchCreator()
-  }, [shotData?.user_id])
+    fetchCategory()
+  }, [shotData?.user_id, shotData?.category_id])
 
   const handleDelete = async () => {
     if (!canDelete || isDeleting) return
@@ -72,32 +91,26 @@ export default function ShotModal({ shotData, onClose }: { shotData: any; onClos
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4" onClick={onClose}>
-      <div
-        className="bg-white rounded-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="sticky top-0 bg-white border-b border-gray-200 p-4 flex justify-between items-start gap-4">
+    <div className="relative">
+      <div className="bg-gray-900 rounded-xl w-full" onClick={(e) => e.stopPropagation()}>
+        <div className="sticky top-0 bg-gray-900 border-b border-gray-800 p-4 flex justify-between items-start gap-4">
           <div className="flex-1 min-w-0">
-            <h2 className="text-2xl font-bold text-gray-900 truncate">{shotData.title}</h2>
-            {!loadingCreator && creator && (
-              <p className="text-sm text-gray-600 mt-1">por {creator.username}</p>
+            <div className="flex items-center gap-2 mb-1">
+              <h2 className="text-2xl font-bold text-white truncate">{shotData.title}</h2>
+              {categoryName && (
+                <span className="px-3 py-1 bg-[#D4AF37]/20 text-[#D4AF37] text-xs font-semibold rounded-full whitespace-nowrap">
+                  {categoryName}
+                </span>
+              )}
+            </div>
+            {!loadingCreator && (
+              <p className="text-sm text-gray-400 mt-1">
+                Creador: {creator?.username ? `@${creator.username}` : 'Sin Creador'}
+              </p>
             )}
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
-            {canDelete && (
-              <button
-                onClick={handleDelete}
-                disabled={isDeleting}
-                className="text-red-500 hover:text-red-700 disabled:opacity-50 p-2"
-                title="Eliminar shot"
-              >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                </svg>
-              </button>
-            )}
-            <button onClick={onClose} className="text-gray-400 hover:text-gray-600 p-2">
+            <button onClick={onClose} className="text-gray-400 hover:text-gray-200 p-2">
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
               </svg>
@@ -106,7 +119,7 @@ export default function ShotModal({ shotData, onClose }: { shotData: any; onClos
         </div>
 
         <div className="p-6">
-          <div className="mb-6 rounded-lg overflow-hidden bg-gray-100">
+          <div className="mb-6 rounded-lg overflow-hidden bg-black"> 
             <img
               src={shotData.image_url || "/placeholder.svg"}
               alt={shotData.description || "shot"}
@@ -117,12 +130,12 @@ export default function ShotModal({ shotData, onClose }: { shotData: any; onClos
 
           {shotData.description && (
             <div className="mb-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Descripción</h3>
-              <p className="text-gray-700 whitespace-pre-wrap">{shotData.description}</p>
+              <h3 className="text-lg font-semibold text-white mb-2">Descripción</h3>
+              <p className="text-gray-300 whitespace-pre-wrap">{shotData.description}</p>
             </div>
           )}
 
-          <div className="border-t border-gray-200 pt-4 text-sm text-gray-600">
+          <div className="border-t border-gray-800 pt-4 text-sm text-gray-400">
             <p>Publicado: {new Date(shotData.created_at).toLocaleString("es-ES")}</p>
             {shotData.is_approved === false && (
               <p className="text-yellow-600 mt-1">⏳ Pendiente de aprobación</p>

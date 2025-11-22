@@ -105,38 +105,38 @@ export default function UsernameModal({ isOpen, onSubmit, onCancel }: UsernameMo
   const canSubmit = liveValidation.valid && !loading;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-      <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
-        <h2 className="text-lg font-semibold text-gray-900">Elige tu nombre de usuario</h2>
-        <p className="mt-1 text-sm text-gray-600">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+      <div className="w-full max-w-md rounded-2xl bg-gray-950 p-6 shadow-2xl border border-[#B08A2E]">
+        <h2 className="text-xl font-bold text-white">Elige tu nombre de usuario</h2>
+        <p className="mt-1 text-sm text-gray-300">
           Debe ser único (3-15 caracteres). Solo letras minúsculas, números, '_', '.', '-'.
         </p>
         
         {/* Leyenda informativa/advertencia */}
-        <div className="mt-3 rounded-md bg-amber-50 border border-amber-200 p-3">
+        <div className="mt-3 rounded-lg bg-yellow-900/20 border border-yellow-800 p-3">
           <div className="flex items-start gap-2">
-            <svg className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+            <svg className="h-5 w-5 text-[#D4AF37] flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
               <path fillRule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
             </svg>
-            <p className="text-xs text-amber-800">
-              <strong>Importante:</strong> Es necesario asignar un nombre de usuario para continuar. Si cancelas, se cerrará tu sesión.
+            <p className="text-xs text-yellow-300">
+              <strong className="text-white/90">Importante:</strong> Es necesario asignar un nombre de usuario para continuar. Si cancelas, se cerrará tu sesión.
             </p>
           </div>
         </div>
 
         <form onSubmit={handleSubmit} className="mt-4 space-y-3">
           <div>
-            <label htmlFor="username" className="block text-sm font-medium text-gray-700">Username</label>
+            <label htmlFor="username" className="block text-sm font-medium text-gray-300">Username</label>
             <input
               id="username"
               ref={inputRef}
               value={value}
               onChange={handleChange}
               placeholder="tu_nombre"
-              className={`mt-1 w-full rounded-md border px-3 py-2 text-gray-900 shadow-sm focus:outline-none focus:ring-1 ${
+              className={`mt-1 w-full rounded-md border px-3 py-2 bg-gray-900 text-white placeholder:text-gray-500 shadow-sm focus:outline-none focus:ring-1 ${
                 value && !liveValidation.valid
-                  ? 'border-red-400 focus:border-red-500 focus:ring-red-500'
-                  : 'border-gray-300 focus:border-black focus:ring-black'
+                  ? 'border-red-500 focus:border-red-500 focus:ring-red-500'
+                  : 'border-gray-800 focus:border-[#D4AF37] focus:ring-[#D4AF37]'
               }`}
             />
             
@@ -146,7 +146,7 @@ export default function UsernameModal({ isOpen, onSubmit, onCancel }: UsernameMo
                 {liveValidation.messages.map((msg, i) => {
                   const isOk = msg.startsWith('✓');
                   return (
-                    <li key={i} className={isOk ? 'text-green-600' : 'text-red-600'}>
+                    <li key={i} className={isOk ? 'text-green-400' : 'text-red-400'}>
                       {msg}
                     </li>
                   );
@@ -155,7 +155,7 @@ export default function UsernameModal({ isOpen, onSubmit, onCancel }: UsernameMo
             )}
 
             {/* Server error (duplicado, etc) */}
-            {error && <p className="mt-2 text-sm font-medium text-red-600">{error}</p>}
+            {error && <p className="mt-2 text-sm font-medium text-red-400">{error}</p>}
           </div>
 
           <div className="mt-4 flex items-center justify-end gap-3">
@@ -163,7 +163,7 @@ export default function UsernameModal({ isOpen, onSubmit, onCancel }: UsernameMo
               <button
                 type="button"
                 onClick={onCancel}
-                className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                className="rounded-full border border-gray-700 bg-gray-800 px-4 py-2 text-sm font-medium text-gray-200 hover:bg-gray-700"
                 disabled={loading}
               >
                 Cancelar
@@ -172,7 +172,7 @@ export default function UsernameModal({ isOpen, onSubmit, onCancel }: UsernameMo
             <button
               type="submit"
               disabled={!canSubmit}
-              className="rounded-md bg-black px-4 py-2 text-sm font-semibold text-white hover:bg-gray-900 disabled:cursor-not-allowed disabled:opacity-50"
+              className="rounded-full bg-[#D4AF37] px-4 py-2 text-sm font-semibold text-black hover:bg-[#B08A2E] disabled:cursor-not-allowed disabled:opacity-50"
             >
               {loading ? 'Guardando…' : 'Guardar'}
             </button>

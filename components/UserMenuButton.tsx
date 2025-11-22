@@ -15,7 +15,23 @@ export default function UserMenuButton({ user }: { user: User | UserWithRole }) 
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const router = useRouter()
   const [username, setUsername] = useState<string>("")
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
   const menuRef = useRef<HTMLDivElement>(null)
+  const role = ((user as any)?.role as import("../lib/roleUtils").UserRole) || 'subscriber'
+  const borderClass = role === 'subscriber'
+    ? 'border-2 border-[#E4007C]'
+    : role === 'member'
+    ? 'border-2 border-[#0047AB]'
+    : role === 'admin'
+    ? 'border-2 border-[#D4AF37]'
+    : 'border-2 border-[#FF6A00]'
+  const ringColorClass = role === 'subscriber'
+    ? 'focus-visible:ring-[#E4007C] hover:ring-[#E4007C]'
+    : role === 'member'
+    ? 'focus-visible:ring-[#0047AB] hover:ring-[#0047AB]'
+    : role === 'admin'
+    ? 'focus-visible:ring-[#D4AF37] hover:ring-[#D4AF37]'
+    : 'focus-visible:ring-[#FF6A00] hover:ring-[#FF6A00]'
 
   const userInitial = username ? username.charAt(0).toUpperCase() : (user.email?.charAt(0).toUpperCase() ?? "U")
 
@@ -29,8 +45,36 @@ export default function UserMenuButton({ user }: { user: User | UserWithRole }) 
         setUsername(user.email || "Usuario")
       }
     }
+    const fetchAvatar = async () => {
+      try {
+        const { data } = await supabase.auth.getUser()
+        const meta: any = data.user?.user_metadata || {}
+        const url: string | undefined = meta.avatar_url || meta.picture || meta.avatarUrl
+        setAvatarUrl(url || null)
+      } catch {
+        setAvatarUrl(null)
+      }
+    }
     fetchUsername()
+    fetchAvatar()
   }, [user.id, user.email])
+
+  // Refrescar username al abrir el menú (por si fue actualizado en /perfil)
+  useEffect(() => {
+    if (!isMenuOpen) return
+    ;(async () => {
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('username')
+          .eq('id', user.id)
+          .single()
+        if (!error && data?.username) {
+          setUsername(data.username)
+        }
+      } catch {}
+    })()
+  }, [isMenuOpen, user.id])
 
   // Determine if the current user role is allowed to create shots.
   // If the auth `user` object doesn't include a `role` (raw Supabase User),
@@ -62,18 +106,55 @@ export default function UserMenuButton({ user }: { user: User | UserWithRole }) 
     <div className="relative" ref={menuRef}>
       <button
         onClick={() => setIsMenuOpen(!isMenuOpen)}
-        className="flex items-center justify-center w-10 h-10 rounded-full bg-gray-300 hover:bg-gray-400 transition-colors"
+        className={`group flex items-center justify-center w-10 h-10 rounded-full bg-gray-300 hover:bg-gray-400 transition-colors overflow-hidden ${borderClass} ring-transparent focus-visible:ring-2 hover:ring-2 ring-offset-2 ring-offset-gray-900 ${ringColorClass}`}
+        aria-label="Menú de usuario"
       >
-        <span className="text-gray-700 font-semibold">{userInitial}</span>
+        {avatarUrl ? (
+          <img
+            src={avatarUrl}
+            alt={username || 'Avatar'}
+            className="w-full h-full object-cover grayscale opacity-70 group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-300"
+            onError={() => setAvatarUrl(null)}
+            referrerPolicy="no-referrer"
+          />
+        ) : (
+          <span className="text-gray-700 font-semibold">{userInitial}</span>
+        )}
       </button>
 
       {isMenuOpen && (
         <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50">
-          <div className="px-4 py-2 text-sm text-gray-700 border-b">{username}</div>
+          <button
+            onClick={() => {
+              setIsMenuOpen(false);
+              router.push('/perfil');
+            }}
+            className={`block w-full text-left px-4 py-2 text-sm font-semibold text-gray-900 border-b transition-colors ${
+              role === 'superadmin'
+                ? 'bg-[#FF6A00]/10 hover:bg-[#FF6A00]/20'
+                : role === 'admin'
+                ? 'bg-[#D4AF37]/10 hover:bg-[#D4AF37]/20'
+                : role === 'member'
+                ? 'bg-[#0047AB]/10 hover:bg-[#0047AB]/20'
+                : 'bg-[#E4007C]/10 hover:bg-[#E4007C]/20'
+            }`}
+          >
+            {username}
+          </button>
 
-          <Link href="/mis-shots" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
-            Mis Shots
-          </Link>
+          {role === 'subscriber' ? (
+            <div
+              className="block w-full text-left px-4 py-2 text-sm text-gray-400 cursor-not-allowed"
+              title="Disponible para miembros"
+              aria-disabled="true"
+            >
+              Mis Shots — disponible para miembros
+            </div>
+          ) : (
+            <Link href="/mis-shots" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+              Mis Shots
+            </Link>
+          )}
           <Link href="/shots-guardados" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
             Shots Guardados
           </Link>
@@ -99,9 +180,11 @@ export default function UserMenuButton({ user }: { user: User | UserWithRole }) 
             </div>
           )}
 
-          <Link href="/admin" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
-            Panel de Administración
-          </Link>
+          {(role === 'admin' || role === 'superadmin') && (
+            <Link href="/admin" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+              Panel de Administración
+            </Link>
+          )}
 
           <hr className="my-1" />
 

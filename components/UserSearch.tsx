@@ -24,6 +24,7 @@ export default function UserSearch({
   const [searchTerm, setSearchTerm] = useState('');
   const [users, setUsers] = useState<UserWithRole[]>([]);
   const [selectedUsers, setSelectedUsers] = useState<Set<string>>(new Set());
+  const [promotedUsers, setPromotedUsers] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [promoting, setPromoting] = useState(false);
@@ -145,19 +146,23 @@ export default function UserSearch({
 
     setPromoting(true);
     try {
+      const newPromoted = new Set(promotedUsers);
       for (const userId of selectedUsers) {
         const res = await onPromote(userId, targetRole);
 
-        // If the promotion succeeded, update the user locally in the results
+        // If the promotion succeeded, mark as promoted visually
         if (res && (res as any).success) {
           setUsers(prev => prev.map(u => (u.id === userId ? { ...u, role: targetRole } : u)));
+          newPromoted.add(userId);
         } else if (!res) {
-          // If caller didn't return a value but didn't throw, assume success and update locally
+          // If caller didn't return a value but didn't throw, assume success
           setUsers(prev => prev.map(u => (u.id === userId ? { ...u, role: targetRole } : u)));
+          newPromoted.add(userId);
         }
       }
+      setPromotedUsers(newPromoted);
       
-      // Clear selection. We intentionally do not refetch to keep the changed role visible locally.
+      // Clear selection
       setSelectedUsers(new Set());
     } catch (error) {
       console.error('Error promoting users:', error);
@@ -220,30 +225,50 @@ export default function UserSearch({
             Resultados de búsqueda ({users.length})
           </h4>
           <div className="max-h-60 overflow-y-auto space-y-2">
-            {users.map((user) => (
-              <div
-                key={user.id}
-                className="flex items-center justify-between p-3 bg-gray-700 rounded-md hover:bg-gray-600 transition-colors"
-              >
-                <div className="flex items-center space-x-3">
-                  <input
-                    type="checkbox"
-                    checked={selectedUsers.has(user.id)}
-                    onChange={() => handleUserToggle(user.id)}
-                    className="h-4 w-4 text-[#D4AF37] focus:ring-[#D4AF37] border-gray-300 rounded"
-                  />
-                  <div>
-                    <div className="text-white font-medium">@{user.username}</div>
-                    <div className="text-gray-400 text-sm">
-                      {getRoleDisplayName(user.role)} • Registrado: {formatDate(user.created_at)}
+            {users.map((user) => {
+              const isPromoted = promotedUsers.has(user.id);
+              const isSelected = selectedUsers.has(user.id);
+              return (
+                <div
+                  key={user.id}
+                  onClick={() => !isPromoted && handleUserToggle(user.id)}
+                  className={`flex items-center justify-between p-3 rounded-md transition-all duration-300 ${
+                    isPromoted
+                      ? 'bg-[#D4AF37]/20 border-2 border-[#D4AF37]'
+                      : isSelected
+                      ? 'bg-blue-600/20 border-2 border-blue-500 cursor-pointer'
+                      : 'bg-gray-700 hover:bg-gray-600 cursor-pointer'
+                  }`}
+                >
+                  <div className="flex items-center space-x-3">
+                    <input
+                      type="checkbox"
+                      checked={selectedUsers.has(user.id)}
+                      onChange={() => {}}
+                      disabled={isPromoted}
+                      className="h-4 w-4 text-[#D4AF37] focus:ring-[#D4AF37] border-gray-300 rounded disabled:opacity-50 pointer-events-none"
+                    />
+                    <div>
+                      <div className={`font-medium ${
+                        isPromoted ? 'text-[#D4AF37]' : isSelected ? 'text-blue-400' : 'text-white'
+                      }`}>@{user.username}</div>
+                      <div className="text-gray-400 text-sm">
+                        {getRoleDisplayName(user.role)} • Registrado: {formatDate(user.created_at)}
+                      </div>
                     </div>
                   </div>
+                  <div className="text-sm">
+                    {isPromoted ? (
+                      <span className="text-[#D4AF37] font-semibold">✓ Promovido</span>
+                    ) : isSelected ? (
+                      <span className="text-blue-400 font-semibold">⬆️ A promover</span>
+                    ) : (
+                      <span className="text-gray-400">👤</span>
+                    )}
+                  </div>
                 </div>
-                <div className="text-gray-400 text-sm">
-                  👤
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}

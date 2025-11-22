@@ -16,6 +16,9 @@ type ShotData = {
   profiles?: {
     username: string
   }[] | null
+  categories?: {
+    name: string
+  }[] | null
 }
 
 /**
@@ -28,6 +31,7 @@ type ShotData = {
  * @param props.showOnlySaved - Si true, muestra solo shots guardados por el usuario (usado en "Shots Guardados")
  * @param props.isAdminMode - Si true, muestra shots pendientes y controles de aprobación (usado en Panel Admin)
  * @param props.searchQuery - Texto de búsqueda para filtrar shots por título, descripción, username
+ * @param props.categoryFilter - ID de categoría para filtrar shots por categoría específica
  * @param props.onApprove - Callback para aprobar shots (solo usado en Panel Admin)
  * @param props.onReject - Callback para rechazar shots (solo usado en Panel Admin)
  * 
@@ -43,7 +47,9 @@ export default function MasonryWall({
   userFilter,
   showOnlySaved,
   isAdminMode = false,
+  approvedShotIds,
   searchQuery,
+  categoryFilter,
   onApprove,
   onReject,
   onOpenShot,
@@ -53,7 +59,9 @@ export default function MasonryWall({
   userFilter?: string
   showOnlySaved?: boolean
   isAdminMode?: boolean
+  approvedShotIds?: Set<string>
   searchQuery?: string
+  categoryFilter?: number
   onApprove?: (id: number) => void
   onReject?: (id: number) => void
   onOpenShot?: (shotData: any) => void
@@ -87,11 +95,17 @@ export default function MasonryWall({
         if (enableInfinite) {
           // First page for main wall (approved only)
           // Optimizado: solo campos necesarios para el tile
-          const { data, error: fetchError } = await supabase
+          let query = supabase
             .from("shots")
-            .select(`id, title, image_url, description, user_id`)
+            .select(`id, title, image_url, description, user_id, profiles!shots_user_id_fkey (username), categories!shots_category_id_fkey (name)`)
             .eq("is_approved", true)
-            .eq("is_active", true)
+
+          // Filtrar por categoría si está especificada
+          if (categoryFilter) {
+            query = query.eq("category_id", categoryFilter)
+          }
+
+          const { data, error: fetchError } = await query
             .order("created_at", { ascending: false })
             .range(0, PAGE_SIZE - 1)
 
@@ -111,7 +125,7 @@ export default function MasonryWall({
           // Optimizado: solo campos necesarios (agregamos user_id/is_approved para filtros admin)
           let query = supabase
             .from("shots")
-            .select(`id, title, image_url, description, user_id, is_approved, is_active`)
+            .select(`id, title, image_url, description, user_id, is_approved, is_active, profiles!shots_user_id_fkey (username), categories!shots_category_id_fkey (name)`)
 
           if (!isAdminMode) {
             if (userFilter) {
@@ -121,6 +135,11 @@ export default function MasonryWall({
             }
           } else {
             query = query.or("is_approved.eq.false,is_approved.is.null")
+          }
+
+          // Filtrar por categoría si está especificada
+          if (categoryFilter) {
+            query = query.eq("category_id", categoryFilter)
           }
 
           const { data, error: fetchError } = await query.order("created_at", { ascending: false })
@@ -142,7 +161,7 @@ export default function MasonryWall({
     return () => {
       canceled = true
     }
-  }, [enableInfinite, userFilter, showOnlySaved, isAdminMode])
+  }, [enableInfinite, userFilter, showOnlySaved, isAdminMode, categoryFilter])
 
   // Load more when sentinel is visible
   useEffect(() => {
@@ -162,11 +181,17 @@ export default function MasonryWall({
             const from = page * PAGE_SIZE
             const to = from + PAGE_SIZE - 1
             // Optimizado: solo campos necesarios para tiles
-            const { data, error: fetchError } = await supabase
+            let query = supabase
               .from("shots")
-              .select(`id, title, image_url, description, user_id`)
+              .select(`id, title, image_url, description, user_id, profiles!shots_user_id_fkey (username), categories!shots_category_id_fkey (name)`)
               .eq("is_approved", true)
-              .eq("is_active", true)
+
+            // Filtrar por categoría si está especificada
+            if (categoryFilter) {
+              query = query.eq("category_id", categoryFilter)
+            }
+
+            const { data, error: fetchError } = await query
               .order("created_at", { ascending: false })
               .range(from, to)
 
@@ -247,6 +272,15 @@ export default function MasonryWall({
     )
   }
 
+  // Callback para desaprobar shot en BD y eliminarlo del muro principal
+  const handleDisapprove = async (id: number, reason: string = '') => {
+    await supabase
+      .from('shots')
+      .update({ is_approved: false, disapproval_reason: reason })
+      .eq('id', id);
+    setShots((prev) => prev.filter((shot) => shot.id !== id));
+  };
+
   return (
     <>
       <Masonry
@@ -260,18 +294,26 @@ export default function MasonryWall({
         className="flex w-auto -ml-4"
         columnClassName="pl-4 bg-clip-padding"
       >
-        {shotsToDisplay.map((shot) => (
-          <Shot
-            key={shot.id}
-            isLoggedIn={isLoggedIn}
-            shotData={shot}
-            isInitiallySaved={savedShotIds.has(shot.id)}
-            isAdminMode={isAdminMode}
-            onApprove={onApprove}
-            onReject={onReject}
-            onOpenShot={onOpenShot}
-          />
-        ))}
+        {shotsToDisplay.map((shot) => {
+          // Extraer category_name del join de Supabase
+          const categoryName = shot.categories?.[0]?.name || null
+          const shotWithCategory = { ...shot, category_name: categoryName }
+          
+          return (
+            <Shot
+              key={shot.id}
+              isLoggedIn={isLoggedIn}
+              shotData={shotWithCategory}
+              isInitiallySaved={savedShotIds.has(shot.id)}
+              isAdminMode={isAdminMode}
+              isApproved={approvedShotIds?.has(String(shot.id))}
+              onApprove={onApprove}
+              onReject={onReject}
+              onOpenShot={onOpenShot}
+              onDisapprove={handleDisapprove}
+            />
+          )
+        })}
       </Masonry>
       {/* Sentinel for infinite scroll (only active on main wall)*/}
       {enableInfinite && hasMore && (

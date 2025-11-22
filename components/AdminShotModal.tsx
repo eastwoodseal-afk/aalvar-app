@@ -15,6 +15,7 @@ export default function AdminShotModal({
   onReject?: (id: string | number) => void
 }) {
   const [username, setUsername] = useState<string | null>(null)
+  const [categoryName, setCategoryName] = useState<string | null>(null)
 
   useEffect(() => {
     if (!shotData) return
@@ -31,18 +32,42 @@ export default function AdminShotModal({
         const { data, error } = await supabase.from('profiles').select('username').eq('id', shotData.user_id).single()
         if (error) {
           console.warn('AdminShotModal: could not fetch profile username', error)
-          setUsername(shotData.user_id ?? 'desconocido')
+          setUsername(null)
           return
         }
 
-        setUsername(data?.username ?? (shotData.user_id ?? 'desconocido'))
+        setUsername(data?.username ?? null)
       } catch (err) {
         console.error('AdminShotModal: unexpected error fetching profile', err)
-        setUsername(shotData.user_id ?? 'desconocido')
+        setUsername(null)
       }
     }
 
     fetchProfile()
+
+    // Fetch category name
+    const fetchCategory = async () => {
+      if (!shotData?.category_id) return
+
+      try {
+        const { data, error } = await supabase
+          .from('categories')
+          .select('name')
+          .eq('id', shotData.category_id)
+          .single()
+
+        if (error) {
+          console.warn('AdminShotModal: could not fetch category', error)
+          return
+        }
+
+        setCategoryName(data?.name ?? null)
+      } catch (err) {
+        console.error('AdminShotModal: unexpected error fetching category', err)
+      }
+    }
+
+    fetchCategory()
   }, [shotData])
 
   if (!shotData) return null
@@ -63,8 +88,15 @@ export default function AdminShotModal({
       <div className="bg-gray-900 text-white w-full max-w-4xl mx-4 rounded-lg overflow-hidden">
         <div className="flex justify-between items-center p-4 border-b border-gray-800">
           <div>
-            <h3 className="text-lg font-semibold">{shotData.title}</h3>
-            <p className="text-sm text-gray-400">Por: @{username ?? (shotData.user_id ?? 'desconocido')}</p>
+            <div className="flex items-center gap-2 mb-1">
+              <h3 className="text-lg font-semibold">{shotData.title}</h3>
+              {categoryName && (
+                <span className="px-2 py-1 bg-[#D4AF37]/20 text-[#D4AF37] text-xs font-semibold rounded-full">
+                  {categoryName}
+                </span>
+              )}
+            </div>
+            <p className="text-sm text-gray-400">Creador: {username ? `@${username}` : 'Sin Creador'}</p>
           </div>
           <div className="flex items-center space-x-2">
             <button onClick={handleApprove} className="bg-green-600 hover:bg-green-700 px-3 py-1 rounded">✅ Aprobar</button>
@@ -89,7 +121,7 @@ export default function AdminShotModal({
 
             <div className="text-sm text-gray-400 space-y-2">
               <div><strong>ID:</strong> {shotData.id}</div>
-              <div><strong>Usuario:</strong> @{username ?? (shotData.user_id ?? 'desconocido')}</div>
+              <div><strong>Creador:</strong> {username ? `@${username}` : 'Sin Creador'}</div>
               <div><strong>Estado aprobación:</strong> {shotData.is_approved ? 'Aprobado' : 'Pendiente'}</div>
               <div><strong>Activo:</strong> {shotData.is_active ? 'Sí' : 'No'}</div>
               <div><strong>Creado:</strong> {new Date(shotData.created_at).toLocaleString()}</div>

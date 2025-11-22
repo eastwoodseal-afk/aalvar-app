@@ -4,6 +4,7 @@ import { useState, Suspense } from "react"
 import Link from "next/link"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { useAuth } from "../lib/AuthContext"
+import { useRightPanel } from "../lib/RightPanelContext"
 import UserMenuButton from "./UserMenuButton"
 import { Cormorant_Garamond } from 'next/font/google'
 
@@ -14,12 +15,12 @@ function HeaderContent({ onLogoClick, onLoginClick }: { onLogoClick?: () => void
   const { user } = useAuth()
   const router = useRouter()
   const searchParams = useSearchParams()
+  const { setRightPanel } = useRightPanel()
   const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '')
 
   const pathname = usePathname()
   const isMyShots = pathname === '/mis-shots'
   const isSavedShots = pathname === '/shots-guardados'
-  const isCrearShot = pathname === '/crear-shot'
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
@@ -38,15 +39,18 @@ function HeaderContent({ onLogoClick, onLoginClick }: { onLogoClick?: () => void
             {/* Top row: logo + title + buttons (Desktop: h-16, Mobile: h-14) */}
             <div className="relative flex items-center h-16 md:h-20">
               {/* Logo y Título */}
-              <Link
-                href="/"
-                onClick={onLogoClick}
+              <button
+                onClick={() => {
+                  setRightPanel(null);
+                  router.push('/');
+                  onLogoClick?.();
+                }}
                 className={`${garamond.className} flex-shrink-0 bg-[#D4AF37] text-white px-3 md:px-4 py-1.5 rounded-lg mr-4 md:mr-10 cursor-pointer hover:brightness-110 transition-all tracking-wide font-semibold`}
                 title="Inicio"
               >
                 <span className="md:hidden block text-xl">A'AL</span>
                 <span className="hidden md:block text-3xl">A'AL</span>
-              </Link>
+              </button>
 
               {/* Título y subtítulo institucional (solo desktop) */}
               <div className={`hidden md:flex flex-col items-start mr-4 ${garamond.className} leading-tight`}> 
@@ -66,7 +70,7 @@ function HeaderContent({ onLogoClick, onLoginClick }: { onLogoClick?: () => void
                     placeholder="Buscar shots..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full px-3 py-1 rounded-full bg-gray-300 focus:outline-none focus:ring-1 focus:ring-[#D4AF37] text-sm text-black placeholder:text-gray-600"
+                    className="w-full px-3 py-1 rounded-full bg-gray-700 text-gray-100 placeholder:text-gray-300 focus:outline-none focus:ring-1 focus:ring-[#D4AF37] text-sm"
                   />
                 </form>
               </div>
@@ -76,36 +80,42 @@ function HeaderContent({ onLogoClick, onLoginClick }: { onLogoClick?: () => void
               {/* Botones circulares: visibles siempre; deshabilitados si no hay sesión */}
               <div className="hidden md:flex items-center gap-2">
                 {/* Home - Tepee (V invertida) */}
-                <Link
-                  href="/"
-                  onClick={onLogoClick}
+                <button
+                  onClick={() => {
+                    setRightPanel(null);
+                    router.push('/');
+                    onLogoClick?.();
+                  }}
                   className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${
                     pathname === '/'
                       ? 'bg-[#D4AF37] text-black'
-                      : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
+                      : 'bg-gray-700 text-gray-100 hover:bg-gray-600'
                   }`}
                   title="Inicio"
                 >
                   <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
                     <path d="M12 3L4 20h16L12 3z" />
                   </svg>
-                </Link>
+                </button>
 
                 {/* Mis Shots */}
                 {user ? (
-                  <Link
-                    href="/mis-shots"
+                  <button
+                    onClick={() => {
+                      setRightPanel(null);
+                      router.push('/mis-shots');
+                    }}
                     className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${
                       isMyShots
                         ? 'bg-[#D4AF37] text-black'
-                        : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
+                        : 'bg-gray-700 text-gray-100 hover:bg-gray-600'
                     }`}
                     title="Mis Shots"
                   >
                     <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                       <path d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" />
                     </svg>
-                  </Link>
+                  </button>
                 ) : (
                   <div className="relative group">
                     <div
@@ -124,19 +134,31 @@ function HeaderContent({ onLogoClick, onLoginClick }: { onLogoClick?: () => void
 
                 {/* Shots Guardados */}
                 {user ? (
-                  <Link
-                    href="/shots-guardados"
+                  <button
+                    onClick={() => {
+                      setRightPanel(null);
+                      if (isSavedShots) {
+                        // Si ya está en la ruta, no recargar, solo actualizar la URL si es necesario
+                        if (typeof window !== 'undefined') {
+                          const url = new URL(window.location.href);
+                          url.searchParams.delete('shot');
+                          window.history.replaceState({}, '', url.pathname + url.search);
+                        }
+                      } else {
+                        router.push('/shots-guardados');
+                      }
+                    }}
                     className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${
                       isSavedShots
                         ? 'bg-[#D4AF37] text-black'
-                        : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
+                        : 'bg-gray-700 text-gray-100 hover:bg-gray-600'
                     }`}
                     title="Shots Guardados"
                   >
                     <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                       <path d="M5 4a2 2 0 012-2h6a2 2 0 012 2v14l-5-2.5L5 18V4z" />
                     </svg>
-                  </Link>
+                  </button>
                 ) : (
                   <div className="relative group">
                     <div
@@ -158,19 +180,32 @@ function HeaderContent({ onLogoClick, onLoginClick }: { onLogoClick?: () => void
 
                 {/* Crear Shot */}
                 {user ? (
-                  <Link
-                    href="/crear-shot"
+                  <button
+                    onClick={() => {
+                      setRightPanel({ type: 'modal', modal: 'crear-shot' });
+                      if (isMyShots) {
+                        // Solo actualizar el parámetro modal en la URL, sin recargar la sección
+                        if (typeof window !== 'undefined') {
+                          const url = new URL(window.location.href);
+                          url.searchParams.set('modal', 'crear-shot');
+                          window.history.replaceState({}, '', url.pathname + url.search);
+                        }
+                      } else {
+                        // Navegación completa si se llama desde fuera de mis shots
+                        router.push('/mis-shots?modal=crear-shot');
+                      }
+                    }}
                     className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${
-                      isCrearShot
+                      searchParams.get('modal') === 'crear-shot'
                         ? 'bg-[#D4AF37] text-black'
-                        : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
+                        : 'bg-gray-700 text-gray-100 hover:bg-gray-600'
                     }`}
                     title="Crear Shot"
                   >
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
                     </svg>
-                  </Link>
+                  </button>
                 ) : (
                   <div className="relative group">
                     <div
@@ -194,22 +229,16 @@ function HeaderContent({ onLogoClick, onLoginClick }: { onLogoClick?: () => void
               {user ? (
                 <UserMenuButton user={user} />
               ) : (
-                onLoginClick ? (
-                  <button
-                    type="button"
-                    onClick={(e) => { e.preventDefault(); onLoginClick(); }}
-                    className="bg-black text-white px-4 py-2 rounded-full hover:bg-gray-800 transition-colors"
-                  >
-                    Iniciar Sesión
-                  </button>
-                ) : (
-                  <Link
-                    href="/auth"
-                    className="bg-black text-white px-4 py-2 rounded-full hover:bg-gray-800 transition-colors"
-                  >
-                    Iniciar Sesión
-                  </Link>
-                )
+                <button
+                  onClick={() => {
+                    setRightPanel({ type: 'modal', modal: 'auth' });
+                    router.push('/?modal=auth');
+                    onLoginClick?.();
+                  }}
+                    className="bg-gray-700 text-gray-100 px-4 py-2 rounded-full hover:bg-gray-600 transition-colors"
+                >
+                  Iniciar Sesión
+                </button>
               )}
             </div>
           </div>
@@ -222,7 +251,7 @@ function HeaderContent({ onLogoClick, onLoginClick }: { onLogoClick?: () => void
                 placeholder="Buscar shots..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full px-3 py-1 rounded-full bg-gray-300 focus:outline-none focus:ring-1 focus:ring-[#D4AF37] text-sm text-black placeholder:text-gray-600"
+                className="w-full px-3 py-1 rounded-full bg-gray-700 text-gray-100 placeholder:text-gray-300 focus:outline-none focus:ring-1 focus:ring-[#D4AF37] text-sm"
               />
             </form>
           </div>
