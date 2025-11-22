@@ -159,6 +159,9 @@ export default function AuthModal({ onClose, embedded = false }: { onClose: () =
                 </p>
               </div>
             )}
+              {error && (
+                <div className="mt-2 text-xs text-red-500 text-center">{error}</div>
+              )}
     
           <div>
             <label htmlFor="email" className="block text-sm font-medium text-gray-700">Email</label>

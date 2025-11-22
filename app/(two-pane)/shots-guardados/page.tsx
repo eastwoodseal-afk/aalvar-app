@@ -244,14 +244,32 @@ function ShotsGuardadosContent() {
   }, [user, savedShots]);
 
   useEffect(() => {
-    if (!selectedBoardId || !user) return;
+    if (!user) return;
     setLoadingBoardShots(true);
     const fetchBoardShots = async () => {
       try {
-        const { data: boardShotLinks } = await supabase
-          .from('board_shots')
-          .select('shot_id')
-          .eq('board_id', selectedBoardId);
+        let boardShotLinks;
+        if (selectedBoardId === 'none') {
+          // Shots sin asignar a ningún tablero
+          const { data } = await supabase
+            .from('board_shots')
+            .select('shot_id')
+            .is('board_id', null);
+          boardShotLinks = data;
+        } else if (selectedBoardId && selectedBoardId !== 'all') {
+          // Shots asignados a un tablero específico
+          const { data } = await supabase
+            .from('board_shots')
+            .select('shot_id')
+            .eq('board_id', selectedBoardId);
+          boardShotLinks = data;
+        } else {
+          // Todos los shots guardados
+          const { data } = await supabase
+            .from('board_shots')
+            .select('shot_id');
+          boardShotLinks = data;
+        }
         const shotIds = (boardShotLinks || []).map((s: any) => s.shot_id);
         if (shotIds.length === 0) {
           setBoardShots([]);
