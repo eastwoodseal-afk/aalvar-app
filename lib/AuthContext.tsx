@@ -40,23 +40,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           .maybeSingle();
         data = res.data;
         error = res.error;
-        if (data && !error) break;
-        await new Promise((r) => setTimeout(r, 300));
+        console.log('fetchUserWithRole attempt', attempt, 'data:', data, 'error:', error);
+        if (data) break;
+        await new Promise(res => setTimeout(res, 500));
       }
-
-      // If still missing, return null (will retry on next auth state change)
-      if (error || !data) {
-        console.warn('Profile not found for auth user after retries', { authUser, error });
-        return null;
+      if (!data) {
+        // Fallback: si no hay perfil, propaga el usuario básico
+        console.warn('No se encontró perfil, usando usuario básico');
+        return {
+          id: authUser.id,
+          email: authUser.email || '',
+          username: authUser.user_metadata?.username || '',
+          role: 'subscriber',
+          created_at: '',
+          promoted_by: '',
+          promoted_at: '',
+        };
       }
-      // If profile exists but username is empty, prompt the user AFTER sign-in to choose one (only once)
+      // Si el perfil existe pero el username está vacío, solicita al usuario elegir uno (solo una vez)
       try {
         if (!data.username || data.username === '') {
           setPendingUserIdForUsername(authUser.id);
           setShowUsernameModal(true);
         }
       } catch (e) {
-        console.warn('Error handling missing username after OAuth:', e);
+        console.warn('Error handling missing username:', e);
       }
 
       // Create UserWithRole object with email from auth user
@@ -69,11 +77,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         promoted_by: data.promoted_by,
         promoted_at: data.promoted_at,
       };
-
+      console.log('fetchUserWithRole - userWithRole:', userWithRole);
       return userWithRole;
     } catch (error) {
       console.error('Error in fetchUserWithRole:', error);
-      return null;
+      // Fallback: usuario básico
+      return authUser ? {
+        id: authUser.id,
+        email: authUser.email || '',
+        username: authUser.user_metadata?.username || '',
+        role: 'subscriber',
+        created_at: '',
+        promoted_by: '',
+        promoted_at: '',
+      } : null;
     }
   };
 
@@ -130,12 +147,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Get initial session
     const getInitialSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
-      
+      console.log('getInitialSession - session:', session);
       if (session?.user) {
         const userWithRole = await fetchUserWithRole(session.user);
         setUser(userWithRole);
+        console.log('getInitialSession - userWithRole:', userWithRole);
       }
-      
       setLoading(false);
     };
 
@@ -144,11 +161,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        console.log('onAuthStateChange - event:', event, 'session:', session);
         if (session?.user) {
           const userWithRole = await fetchUserWithRole(session.user);
           setUser(userWithRole);
+          console.log('onAuthStateChange - userWithRole:', userWithRole);
         } else {
-          // Session lost or signed out: clear user.
           setUser(null);
           // Avoid redundant redirects on first load and when already at '/'
           const path = typeof window !== 'undefined' ? window.location.pathname : '';
@@ -213,6 +231,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
 
     if (error) throw error;
+    // Refresca el usuario inmediatamente después del login
+    await refreshUserRole();
   };
 
   const signOut = async () => {

@@ -77,11 +77,7 @@ export default function AdminShotModal({
     onClose()
   }
 
-  const handleReject = () => {
-    if (!confirm('¿Estás seguro de que quieres rechazar este shot? Esta acción no se puede deshacer.')) return
-    onReject?.(shotData.id)
-    onClose()
-  }
+  // ...eliminada lógica de rechazo...
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
@@ -100,7 +96,6 @@ export default function AdminShotModal({
           </div>
           <div className="flex items-center space-x-2">
             <button onClick={handleApprove} className="bg-green-600 hover:bg-green-700 px-3 py-1 rounded">✅ Aprobar</button>
-            <button onClick={handleReject} className="bg-red-600 hover:bg-red-700 px-3 py-1 rounded">❌ Rechazar</button>
             <button onClick={onClose} className="text-gray-300 hover:text-white px-2">Cerrar</button>
           </div>
         </div>
