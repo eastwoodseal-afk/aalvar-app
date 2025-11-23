@@ -1,5 +1,3 @@
-// aalvar-app/app/layout.tsx
-
 import type { Metadata } from 'next';
 import ClientRootLayout from './layout-client';
 
